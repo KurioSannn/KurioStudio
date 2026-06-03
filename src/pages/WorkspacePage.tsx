@@ -75,7 +75,7 @@ export function WorkspacePage() {
             </div>
           )}
           
-          <div className="rounded-xl border border-[#FFF3D6] bg-[#FFF3D6]/35 p-4 text-xs text-accent-secondary flex items-start gap-2.5">
+          <div className="rounded-xl border border-accent-bg bg-accent-bg/35 p-4 text-xs text-accent-secondary flex items-start gap-2.5">
             <Database className="h-4.5 w-4.5 shrink-0" />
             <div>
               <span className="font-bold block">Secure Browser Ingestion Active</span>
@@ -89,7 +89,7 @@ export function WorkspacePage() {
             {history.map((record) => (
               <div
                 key={record.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 hover:bg-[#FAFAF7] transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 hover:bg-brand-secondary transition-colors"
                 style={{ contentVisibility: "auto" }}
               >
                 {/* Meta details */}
@@ -128,7 +128,7 @@ export function WorkspacePage() {
 
         </div>
       ) : (
-        <div className="text-center py-20 border border-brand-border border-dashed rounded-2xl bg-[#FAFAF7] space-y-4">
+        <div className="text-center py-20 border border-brand-border border-dashed rounded-2xl bg-brand-secondary space-y-4">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-text-muted">
             <History className="h-5.5 w-5.5" />
           </div>

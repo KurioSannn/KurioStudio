@@ -45,14 +45,24 @@ export function Footer() {
                   Privacy & Beta Info
                 </button>
               </li>
+              <li>
+                <a href="https://github.com/KurioSannn" target="_blank" rel="noreferrer" className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258]">
+                  GitHub
+                </a>
+              </li>
+              <li>
+                <a href="mailto:ferdychoruz08@gmail.com" className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258]">
+                  Contact
+                </a>
+              </li>
             </ul>
           </div>
  
           {/* Legal Guard */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#171717] mb-3">Compliance</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#171717] mb-3">Trust & Privacy</h4>
             <p className="text-[10px] text-[#9A9187] leading-relaxed">
-              Core file tools run locally in the browser. AI helper requests use a backend proxy and are rate limited during beta.
+              Most file tools run directly in your browser. AI helper access is rate limited during public beta.
             </p>
           </div>
  

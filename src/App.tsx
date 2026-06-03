@@ -31,7 +31,7 @@ function MainAppRouter() {
     switch (route) {
       case "/":
         return (
-          <div className="space-y-4 animate-fade-in">
+          <div className="animate-fade-in">
             <HeroSection />
             
             {/* Quick action drop zones panel */}
