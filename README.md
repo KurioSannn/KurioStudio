@@ -40,3 +40,23 @@ Kurio Studio is an all-in-one creative utility platform designed for creators, d
 - Do not expose `GEMINI_API_KEY` to browser code or public repositories.
 - Treat Gemini-powered helpers as limited or premium features.
 - Add persistent user accounts, subscription checks, and database-backed quota before charging users.
+
+## Vercel Deployment
+
+Kurio Studio can deploy on Vercel without migrating to Next.js. The frontend remains Vite + React, and the API routes are mirrored as Vercel serverless functions under `/api`.
+
+- Framework Preset: `Vite`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+
+Set these Vercel environment variables:
+
+```bash
+GEMINI_API_KEY="your_server_side_key"
+GEMINI_MODEL="gemini-2.5-flash"
+AI_DAILY_LIMIT="10"
+AI_MINUTE_LIMIT="3"
+AI_MAX_PROMPT_CHARS="2000"
+```
+
+Do not add `GEMINI_API_KEY` to any `VITE_` variable. Browser code must never receive the key.
