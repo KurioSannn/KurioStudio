@@ -65,7 +65,6 @@ export function Footer() {
  
         <div className="mt-8 pt-6 border-t border-[#E7E2D8] flex flex-col sm:flex-row justify-between items-center gap-4 text-[11px] text-[#9A9187]">
           <span>&copy; {new Date().getFullYear()} Kurio Studio. All rights reserved.</span>
-          <span className="font-mono text-[#6B6258] bg-[#F3F0EA] px-2 py-0.5 rounded">Local Host Isolation: Active</span>
         </div>
       </div>
     </footer>

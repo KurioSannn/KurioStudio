@@ -34,7 +34,7 @@ function MainAppRouter() {
             <HeroSection />
             
             {/* Quick action drop zones panel */}
-            <div className="bg-[#FAFAF7] border-b border-brand-border py-4.5">
+            <div className="bg-brand-secondary border-b border-brand-border py-4.5">
               <QuickDropZone />
             </div>
 
