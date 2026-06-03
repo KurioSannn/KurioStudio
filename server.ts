@@ -15,6 +15,23 @@ const fileSizeLimit = process.env.MAX_FILE_SIZE_MB ? `${process.env.MAX_FILE_SIZ
 app.use(express.json({ limit: fileSizeLimit }));
 app.use(express.urlencoded({ extended: true, limit: fileSizeLimit }));
 
+app.post("/api/analytics", (req: Request, res: Response) => {
+  const { event, payload, path: appPath, timestamp } = req.body || {};
+  if (!event || typeof event !== "string") {
+    res.status(400).json({ success: false, message: "event property is required" });
+    return;
+  }
+
+  console.info("[analytics]", {
+    event,
+    path: appPath || "",
+    timestamp: timestamp || new Date().toISOString(),
+    payload: payload || {},
+  });
+
+  res.json({ success: true });
+});
+
 // Initialize GoogleGenAI SDK with telemetric instructions
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -153,6 +170,12 @@ app.post("/api/gemini", async (req: Request, res: Response): Promise<void> => {
     });
     return;
   }
+
+  console.info("[analytics]", {
+    event: "ai_request_used",
+    timestamp: new Date().toISOString(),
+    payload: { mode, promptLength: String(userInput).length },
+  });
 
   // If AI client is uninitialized, fallback to mock responses to provide a seamless offline experience
   if (!ai) {

@@ -6,7 +6,8 @@ import { OutputPanel } from "@/src/components/tools/output-panel";
 import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
-import { Play, Pause, Trash2, Sliders, Palette, Zap, CheckCircle2, RefreshCw, Download, Edit } from "lucide-react";
+import { trackEvent } from "@/src/lib/analytics";
+import { Play, Pause, Trash2, Palette, Zap, CheckCircle2, RefreshCw, Download, AlertCircle } from "lucide-react";
 
 interface LottieStats {
   version: string;
@@ -41,6 +42,8 @@ export function LottiePreview() {
   const [exportState, setExportState] = useState<"idle" | "rendering" | "completed" | "error">("idle");
   const [exportProgress, setExportProgress] = useState(0);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(true);
   const [isLooping, setIsLooping] = useState(true);
@@ -198,17 +201,25 @@ export function LottiePreview() {
     setIsPlaying(true);
     setIsLooping(true);
     setPlaySpeed(1.0);
+    setStatusMessage(null);
+    setErrorMessage(null);
+    trackEvent("file_processed", { toolId: "lottie-preview", fileType: selectedFile.type || ".json", fileSize: selectedFile.size });
 
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
       setRawJson(text);
-      analyzeLottieJSON(text);
+      analyzeLottieJSON(text, selectedFile);
+    };
+    reader.onerror = () => {
+      setErrorMessage("Could not read the selected Lottie JSON file.");
+      setLoading(false);
+      trackEvent("conversion_failed", { toolId: "lottie-preview", message: "FileReader failed" });
     };
     reader.readAsText(selectedFile);
   };
 
-  const analyzeLottieJSON = (jsonString: string) => {
+  const analyzeLottieJSON = (jsonString: string, sourceFile: File) => {
     try {
       const parsed = JSON.parse(jsonString);
       
@@ -254,14 +265,24 @@ export function LottiePreview() {
       addToWorkspaceHistory({
         toolId: "lottie-preview",
         toolName: "Lottie Preview",
-        fileName: file?.name || "animated_asset.json",
-        fileSize: jsonString.length,
+        fileName: sourceFile.name,
+        fileSize: sourceFile.size,
         outputType: "JSON Checked",
         status: "completed",
       });
+      setStatusMessage(`Loaded ${layersCount} layers at ${frameRate} fps. Preview is ready for beta testing.`);
+      setErrorMessage(null);
+      trackEvent("conversion_success", {
+        toolId: "lottie-preview",
+        fileType: sourceFile.type || ".json",
+        fileSize: sourceFile.size,
+        layers: layersCount,
+        frameRate,
+      });
       setLoading(false);
-    } catch (e) {
-      alert("Invalid JSON format. Please drop a valid structured JSON document.");
+    } catch (e: any) {
+      setErrorMessage(e.message || "Invalid JSON format. Please drop a valid structured JSON document.");
+      trackEvent("conversion_failed", { toolId: "lottie-preview", message: e.message || "Invalid JSON" });
       setFile(null);
       setLoading(false);
     }
@@ -295,7 +316,7 @@ Colors detected: ${colors.join(", ")}`;
       if (data.success) {
         setAiAnalysis(data.result);
       } else {
-        setAiAnalysis("Analysis failed. Structural parameters indicate standard JSON layer integrity.");
+        setAiAnalysis(data.message || "Analysis failed. Structural parameters indicate standard JSON layer integrity.");
       }
     } catch (e) {
       setAiAnalysis("No active connection to auxiliary Gemini nodes. Manual audit: structural frames are well-aligned.");
@@ -373,7 +394,9 @@ Colors detected: ${colors.join(", ")}`;
     try {
       const svgElement = containerRef.current.querySelector("svg");
       if (!svgElement) {
-        alert("Animation preview vector elements not found. Make sure the animation is active.");
+        setExportError("Animation preview vector elements not found. Make sure the animation is active.");
+        setExportState("error");
+        trackEvent("conversion_failed", { toolId: "lottie-preview", message: "SVG preview not found", phase: "frame-export" });
         return;
       }
 
@@ -414,6 +437,12 @@ Colors detected: ${colors.join(", ")}`;
               link.click();
               document.body.removeChild(link);
               URL.revokeObjectURL(url);
+              setStatusMessage("Current animation frame exported as WebP successfully.");
+              trackEvent("conversion_success", { toolId: "lottie-preview", fileType: "image/webp", phase: "frame-export" });
+            } else {
+              setExportError("Frame export failed because the browser could not encode a WebP blob.");
+              setExportState("error");
+              trackEvent("conversion_failed", { toolId: "lottie-preview", message: "Canvas toBlob returned null", phase: "frame-export" });
             }
             URL.revokeObjectURL(blobUrl);
           }, "image/webp", 1.0);
@@ -422,12 +451,18 @@ Colors detected: ${colors.join(", ")}`;
 
       img.onerror = (e) => {
         console.error("Failed to convert vector snapshot into image frame:", e);
+        setExportError("Failed to convert vector snapshot into image frame.");
+        setExportState("error");
+        trackEvent("conversion_failed", { toolId: "lottie-preview", message: "Snapshot image conversion failed", phase: "frame-export" });
         URL.revokeObjectURL(blobUrl);
       };
 
       img.src = blobUrl;
     } catch (e) {
       console.error("Error exporting current animation frame to WebP:", e);
+      setExportError(e instanceof Error ? e.message : "Error exporting current animation frame to WebP.");
+      setExportState("error");
+      trackEvent("conversion_failed", { toolId: "lottie-preview", message: e instanceof Error ? e.message : String(e), phase: "frame-export" });
     }
   };
 
@@ -527,10 +562,12 @@ Colors detected: ${colors.join(", ")}`;
           }, 100);
 
           setExportState("completed");
+          trackEvent("conversion_success", { toolId: "lottie-preview", fileType: "video/webm", phase: "video-export" });
           setTimeout(() => setExportState("idle"), 3000);
         } catch (err: any) {
           setExportError(`Blob encoding fail: ${err.message || err}`);
           setExportState("error");
+          trackEvent("conversion_failed", { toolId: "lottie-preview", message: err.message || String(err), phase: "video-export" });
         } finally {
           anim.destroy();
         }
@@ -563,6 +600,7 @@ Colors detected: ${colors.join(", ")}`;
       console.error(e);
       setExportError(e.message || "An unexpected error occurred during rendering.");
       setExportState("error");
+      trackEvent("conversion_failed", { toolId: "lottie-preview", message: e.message || String(e), phase: "video-export" });
     }
   };
 
@@ -586,6 +624,8 @@ Colors detected: ${colors.join(", ")}`;
     setExportState("idle");
     setExportProgress(0);
     setExportError(null);
+    setStatusMessage(null);
+    setErrorMessage(null);
   };
 
   return (
@@ -594,6 +634,16 @@ Colors detected: ${colors.join(", ")}`;
         
         {/* Left column displays stats and color structures */}
         <div className="lg:col-span-4 space-y-6">
+          {errorMessage && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs text-red-700">
+              <AlertCircle className="mt-0.5 h-4.5 w-4.5 shrink-0 text-red-600" />
+              <div>
+                <span className="font-bold">Lottie parsing failed</span>
+                <p className="mt-0.5">{errorMessage}</p>
+              </div>
+            </div>
+          )}
+
           {!file ? (
             <UploadDropZone
               acceptedExtensions={[".json"]}
@@ -813,6 +863,13 @@ Colors detected: ${colors.join(", ")}`;
             <OutputPanel title={stats.name}>
               
               <div className="space-y-6">
+                {statusMessage && exportState !== "error" && (
+                  <div className="flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 p-3.5 text-xs text-green-700">
+                    <CheckCircle2 className="mt-0.5 h-4.5 w-4.5 shrink-0 text-green-600" />
+                    <span>{statusMessage}</span>
+                  </div>
+                )}
+
                 {/* Lottie Vector animation real player frame */}
                 <div className="rounded-xl border border-brand-border bg-[#FAFAF7] p-6 flex flex-col items-center justify-center relative min-h-[380px]">
                   {/* Status badge */}

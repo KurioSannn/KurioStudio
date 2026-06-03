@@ -12,6 +12,7 @@ interface ToolCardProps {
 
 export function ToolCard({ tool }: ToolCardProps) {
   const { navigate } = useRoute();
+  const isComingSoon = tool.status === "coming-soon";
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
@@ -27,7 +28,9 @@ export function ToolCard({ tool }: ToolCardProps) {
   const Icon = getCategoryIcon(tool.category);
 
   return (
-    <div className="flex flex-col justify-between rounded-xl border border-brand-border bg-brand-surface p-5 hover:shadow-xs duration-200">
+    <div className={`flex flex-col justify-between rounded-xl border border-brand-border bg-brand-surface p-5 duration-200 ${
+      isComingSoon ? "opacity-70" : "hover:shadow-xs"
+    }`}>
       <div>
         <div className="flex items-center justify-between mb-3.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-bg text-accent-secondary">
@@ -43,7 +46,7 @@ export function ToolCard({ tool }: ToolCardProps) {
         </h3>
         
         <p className="text-[11px] text-text-secondary mt-2 leading-relaxed min-h-[32px]">
-          {tool.description}
+          {isComingSoon ? "This tool is disabled during public beta while we finish reliability testing." : tool.description}
         </p>
 
         {/* Requirements specs panel */}
@@ -60,7 +63,7 @@ export function ToolCard({ tool }: ToolCardProps) {
       </div>
 
       <div className="mt-5">
-        {tool.status !== "coming-soon" ? (
+        {!isComingSoon ? (
           <Button
             variant="secondary"
             size="sm"

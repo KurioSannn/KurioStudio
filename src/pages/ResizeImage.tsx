@@ -7,7 +7,8 @@ import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
-import { Trash2, Crop, Sliders } from "lucide-react";
+import { trackEvent } from "@/src/lib/analytics";
+import { Trash2, CheckCircle, AlertCircle } from "lucide-react";
 
 interface PresetItem {
   id: string;
@@ -31,6 +32,8 @@ export function ResizeImage() {
   // Metric logs
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [resizedUrl, setResizedUrl] = useState<string | null>(null);
+  const [statusText, setStatusText] = useState<string | null>(null);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
   // Presets configurations
   const PRESETS: PresetItem[] = [
@@ -43,6 +46,9 @@ export function ResizeImage() {
   const handleFileSelected = (selectedFile: File) => {
     setFile(selectedFile);
     setLoading(true);
+    setStatusText(null);
+    setErrorText(null);
+    trackEvent("file_processed", { toolId: "resize-image", fileType: selectedFile.type, fileSize: selectedFile.size });
 
     const objUrl = URL.createObjectURL(selectedFile);
     setOriginalUrl(objUrl);
@@ -57,6 +63,11 @@ export function ResizeImage() {
       
       // Auto compile initial canvas preview
       processResize(img, img.naturalWidth, img.naturalHeight);
+    };
+    img.onerror = () => {
+      setErrorText("Failed to decode the selected image. Try another JPG, PNG, or WebP file.");
+      setLoading(false);
+      trackEvent("conversion_failed", { toolId: "resize-image", message: "Image decode failed" });
     };
   };
 
@@ -78,6 +89,8 @@ export function ResizeImage() {
 
       const rUrl = canvas.toDataURL(file?.type || "image/png");
       setResizedUrl(rUrl);
+      setStatusText(`Rendered ${targetWidth} x ${targetHeight}px output successfully.`);
+      setErrorText(null);
       
       // Log workspace history record
       addToWorkspaceHistory({
@@ -88,9 +101,17 @@ export function ResizeImage() {
         outputType: "PNG",
         status: "completed",
       });
+      trackEvent("conversion_success", {
+        toolId: "resize-image",
+        fileType: file?.type,
+        fileSize: file?.size,
+        width: targetWidth,
+        height: targetHeight,
+      });
     } catch (e) {
       console.error(e);
-      alert("Failed to render canvas dimensions.");
+      setErrorText("Failed to render canvas dimensions.");
+      trackEvent("conversion_failed", { toolId: "resize-image", message: e instanceof Error ? e.message : String(e) });
     } finally {
       setLoading(false);
     }
@@ -158,6 +179,8 @@ export function ResizeImage() {
     setOriginalUrl(null);
     setResizedUrl(null);
     setLockRatio(true);
+    setStatusText(null);
+    setErrorText(null);
   };
 
   return (
@@ -255,6 +278,18 @@ export function ResizeImage() {
               downloadLabel="Export scaled graphic package"
               isProcessing={loading}
             >
+              {errorText && (
+                <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs text-red-700">
+                  <AlertCircle className="mt-0.5 h-4.5 w-4.5 shrink-0 text-red-600" />
+                  <span>{errorText}</span>
+                </div>
+              )}
+              {statusText && !loading && !errorText && (
+                <div className="mb-4 flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 p-3.5 text-xs text-green-700">
+                  <CheckCircle className="mt-0.5 h-4.5 w-4.5 shrink-0 text-green-600" />
+                  <span>{statusText}</span>
+                </div>
+              )}
               <div className="rounded-xl border border-brand-border bg-brand-secondary p-5 flex items-center justify-center relative min-h-[350px]">
                 {loading ? (
                   <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent-secondary border-t-transparent" />

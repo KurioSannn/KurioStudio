@@ -1,10 +1,10 @@
-import React from "react";
-import { AppRoute, ToolDefinition } from "@/src/lib/types";
+import React, { useEffect } from "react";
 import { useRoute } from "@/src/context/RouteContext";
 import { TOOLS_LIST } from "@/src/lib/constants/tools";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { ArrowLeft, Sparkles, HelpCircle } from "lucide-react";
+import { trackEvent } from "@/src/lib/analytics";
+import { ArrowLeft, HelpCircle, MessageSquare } from "lucide-react";
 
 interface ToolPageShellProps {
   toolId: string;
@@ -17,6 +17,10 @@ export function ToolPageShell({ toolId, children, sidebar }: ToolPageShellProps)
   
   // Find current tool definition
   const tool = TOOLS_LIST.find((t) => t.id === toolId);
+
+  useEffect(() => {
+    trackEvent("tool_opened", { toolId });
+  }, [toolId]);
   
   if (!tool) {
     return (
@@ -33,6 +37,8 @@ export function ToolPageShell({ toolId, children, sidebar }: ToolPageShellProps)
   const relatedTools = TOOLS_LIST.filter(
     (t) => t.category === tool.category && t.id !== tool.id
   ).slice(0, 3);
+
+  const feedbackUrl = "https://github.com/KurioSannn/KurioStudio/issues/new";
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-10 space-y-10">
@@ -62,17 +68,32 @@ export function ToolPageShell({ toolId, children, sidebar }: ToolPageShellProps)
             </p>
           </div>
 
-          {/* Quick Specifications list */}
-          <div className="flex flex-wrap gap-4 text-xs bg-brand-surface border border-brand-border rounded-xl p-4.5 shrink-0 select-none">
-            <div>
-              <span className="block text-text-muted text-[10px] uppercase font-bold tracking-wider">Accepted format</span>
-              <span className="font-mono text-text-primary mt-0.5 block">{tool.inputFormats.join(", ")}</span>
+          <div className="flex flex-col gap-3">
+            {/* Quick Specifications list */}
+            <div className="flex flex-wrap gap-4 text-xs bg-brand-surface border border-brand-border rounded-xl p-4.5 shrink-0 select-none">
+              <div>
+                <span className="block text-text-muted text-[10px] uppercase font-bold tracking-wider">Accepted format</span>
+                <span className="font-mono text-text-primary mt-0.5 block">{tool.inputFormats.join(", ")}</span>
+              </div>
+              <div className="border-l border-brand-border pl-4">
+                <span className="block text-text-muted text-[10px] uppercase font-bold tracking-wider">Export format</span>
+                <span className="font-mono text-text-primary mt-0.5 block">{tool.outputFormats.join(", ")}</span>
+              </div>
             </div>
-            <div className="border-l border-brand-border pl-4">
-              <span className="block text-text-muted text-[10px] uppercase font-bold tracking-wider">Export format</span>
-              <span className="font-mono text-text-primary mt-0.5 block">{tool.outputFormats.join(", ")}</span>
-            </div>
+            <a
+              href={feedbackUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => trackEvent("feedback_opened", { toolId })}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-brand-border bg-white px-4 text-xs font-bold text-text-primary shadow-xs transition-all hover:bg-brand-bg"
+            >
+              <MessageSquare className="h-4 w-4 text-accent-secondary" />
+              Send beta feedback
+            </a>
           </div>
+        </div>
+        <div className="rounded-xl border border-amber-500/20 bg-[#FFF8E6] p-3 text-xs leading-relaxed text-[#7A4A05]">
+          <span className="font-bold">Public beta note:</span> This tool is being tested across real files and browsers. Please report broken files, failed conversions, or confusing output.
         </div>
       </div>
 
@@ -92,11 +113,19 @@ export function ToolPageShell({ toolId, children, sidebar }: ToolPageShellProps)
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-            {relatedTools.map((rTool) => (
+            {relatedTools.map((rTool) => {
+              const isDisabled = rTool.status === "coming-soon";
+              return (
               <div
                 key={rTool.id}
-                onClick={() => navigate(rTool.slug)}
-                className="group flex items-center justify-between p-4 bg-brand-surface border border-brand-border hover:border-accent-primary rounded-xl cursor-pointer transition-all duration-200"
+                onClick={() => {
+                  if (!isDisabled) navigate(rTool.slug);
+                }}
+                className={`group flex items-center justify-between p-4 bg-brand-surface border border-brand-border rounded-xl transition-all duration-200 ${
+                  isDisabled
+                    ? "cursor-not-allowed opacity-60"
+                    : "hover:border-accent-primary cursor-pointer"
+                }`}
               >
                 <div className="min-w-0">
                   <h4 className="text-xs font-bold text-text-primary group-hover:text-accent-secondary transition-colors truncate">
@@ -106,11 +135,11 @@ export function ToolPageShell({ toolId, children, sidebar }: ToolPageShellProps)
                     {rTool.description}
                   </p>
                 </div>
-                <Button variant="ghost" size="icon" className="group-hover:text-accent-secondary shrink-0">
+                <Button variant="ghost" size="icon" disabled={isDisabled} className="group-hover:text-accent-secondary shrink-0">
                   <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
                 </Button>
               </div>
-            ))}
+            )})}
           </div>
         </div>
       )}

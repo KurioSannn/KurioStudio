@@ -6,6 +6,7 @@ import { OutputPanel } from "@/src/components/tools/output-panel";
 import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
+import { trackEvent } from "@/src/lib/analytics";
 import { Trash2, Image as ImageIcon, Sliders, CheckCircle, AlertCircle } from "lucide-react";
 
 export function CompressImage() {
@@ -23,6 +24,7 @@ export function CompressImage() {
   const [compressedSize, setCompressedSize] = useState<number | undefined>(undefined);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const [warningText, setWarningText] = useState<string | null>(null);
+  const [successText, setSuccessText] = useState<string | null>(null);
 
   // Clean up object URLs to avoid memory leaks
   useEffect(() => {
@@ -36,11 +38,13 @@ export function CompressImage() {
     setFile(selectedFile);
     setLoading(true);
     setWarningText(null);
+    setSuccessText(null);
     setDimensions(null);
     setResolutionScale(100); // Reset scale on new file select
     
     const objUrl = URL.createObjectURL(selectedFile);
     setOriginalFileUrl(objUrl);
+    trackEvent("file_processed", { toolId: "compress-image", fileType: selectedFile.type, fileSize: selectedFile.size });
     
     // Process initial compression
     processCompression(selectedFile, quality, outputFormat, 100);
@@ -54,6 +58,7 @@ export function CompressImage() {
   ) => {
     setLoading(true);
     setWarningText(null);
+    setSuccessText(null);
     
     const img = new Image();
     img.src = URL.createObjectURL(sourceFile);
@@ -111,6 +116,9 @@ export function CompressImage() {
                   "The output file is not smaller than the original reference. Try lowering the quality slider, scaling down the resolution, or selecting WebP format."
                 );
               }
+            } else {
+              const saved = Math.round(((sourceFile.size - blob.size) / sourceFile.size) * 100);
+              setSuccessText(`Optimized image successfully. Estimated size reduction: ${saved}%.`);
             }
 
             // Log to workspace history
@@ -122,6 +130,16 @@ export function CompressImage() {
               outputType: exportMime.replace("image/", "").toUpperCase(),
               status: "completed",
             });
+            trackEvent("conversion_success", {
+              toolId: "compress-image",
+              fileType: sourceFile.type,
+              fileSize: sourceFile.size,
+              outputSize: blob.size,
+              outputFormat: exportMime,
+            });
+          } else {
+            setWarningText("The browser could not create an optimized image blob. Try a different output format.");
+            trackEvent("conversion_failed", { toolId: "compress-image", message: "Canvas toBlob returned null" });
           }
           setLoading(false);
           // Revoke memory helper object URL
@@ -134,6 +152,7 @@ export function CompressImage() {
 
     img.onerror = () => {
       setWarningText("Failed to correctly decode graphic reference.");
+      trackEvent("conversion_failed", { toolId: "compress-image", message: "Image decode failed" });
       setLoading(false);
       URL.revokeObjectURL(img.src);
     };
@@ -193,6 +212,7 @@ export function CompressImage() {
     setCompressedSize(undefined);
     setDimensions(null);
     setWarningText(null);
+    setSuccessText(null);
     setResolutionScale(100);
   };
 
@@ -347,6 +367,16 @@ export function CompressImage() {
                 </div>
               )}
 
+              {successText && !loading && !warningText && (
+                <div className="flex items-start gap-2 bg-green-50 text-green-700 p-3.5 rounded-xl border border-green-200 text-xs leading-relaxed">
+                  <CheckCircle className="h-4.5 w-4.5 shrink-0 text-green-600 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-[#171717]">Optimization complete</span>
+                    <p className="mt-0.5">{successText}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
                 {/* Before pane */}
@@ -398,4 +428,3 @@ export function CompressImage() {
   );
 }
 export default CompressImage;
-

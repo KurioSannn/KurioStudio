@@ -22,11 +22,11 @@ export function ComingSoon({ toolName = "Creator module" }: ComingSoonProps) {
           Workspace pipeline
         </span>
         <h2 className="font-sans text-2xl font-extrabold tracking-tight text-text-primary mt-2">
-          {toolName} is undergoing maintenance
+          {toolName} is disabled in public beta
         </h2>
         
         <p className="text-xs text-text-secondary max-w-sm mx-auto leading-relaxed pt-1.5">
-          We are currently engineering optimized web-assembly sandboxes for this específico module. It will register live soon.
+          This module is not available yet. We are keeping unfinished tools disabled so beta testers only use flows we can inspect and support.
         </p>
       </div>
 

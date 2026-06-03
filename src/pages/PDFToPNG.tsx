@@ -6,6 +6,7 @@ import { OutputPanel } from "@/src/components/tools/output-panel";
 import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
+import { trackEvent } from "@/src/lib/analytics";
 import { formatBytes } from "@/src/lib/utils";
 import { Download, FileCheck, Layers, Info, Trash2, AlertCircle } from "lucide-react";
 import JSZip from "jszip";
@@ -27,6 +28,7 @@ export function PDFToPNG() {
   const [scale, setScale] = useState<number>(2.0); // Default high resolution scale factor (2x HD)
   const [exportProgress, setExportProgress] = useState<number>(0);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [successText, setSuccessText] = useState<string | null>(null);
 
   // Helper to load pdfjs dynamically with absolute stability
   const loadPdfEngine = (): Promise<any> => {
@@ -86,7 +88,9 @@ export function PDFToPNG() {
     setPages([]);
     setExportProgress(0);
     setErrorText(null);
+    setSuccessText(null);
     setLoading(true);
+    trackEvent("file_processed", { toolId: "pdf-to-png", fileType: selectedFile.type || ".pdf", fileSize: selectedFile.size });
 
     try {
       const pdfjsLib = await loadPdfEngine();
@@ -110,16 +114,19 @@ export function PDFToPNG() {
         } catch (err: any) {
           console.error(err);
           setErrorText(err.message || "Invalid or corrupt PDF document.");
+          trackEvent("conversion_failed", { toolId: "pdf-to-png", message: err.message || "Invalid PDF document" });
           setLoading(false);
         }
       };
       reader.onerror = () => {
         setErrorText("Could not read uploaded PDF file bytes.");
+        trackEvent("conversion_failed", { toolId: "pdf-to-png", message: "FileReader failed" });
         setLoading(false);
       };
       reader.readAsArrayBuffer(selectedFile);
     } catch (err: any) {
       setErrorText(err.message || "Failed to initialize PDF engine.");
+      trackEvent("conversion_failed", { toolId: "pdf-to-png", message: err.message || "PDF engine failed" });
       setLoading(false);
     }
   };
@@ -217,6 +224,7 @@ export function PDFToPNG() {
       }
       
       setExportProgress(100);
+      setSuccessText(`Converted ${numPages} page${numPages === 1 ? "" : "s"} into PNG successfully.`);
 
       // Log success history
       addToWorkspaceHistory({
@@ -227,9 +235,16 @@ export function PDFToPNG() {
         outputType: "PNG Zip",
         status: "completed",
       });
+      trackEvent("conversion_success", {
+        toolId: "pdf-to-png",
+        fileType: currentFile.type || ".pdf",
+        fileSize: currentFile.size,
+        pages: numPages,
+      });
     } catch (e: any) {
       console.error("Renderer issue:", e);
       setErrorText(`Rendering failed on canvas pipeline: ${e.message || e}`);
+      trackEvent("conversion_failed", { toolId: "pdf-to-png", message: e.message || String(e) });
     } finally {
       setLoading(false);
     }
@@ -275,7 +290,8 @@ export function PDFToPNG() {
       setTimeout(() => URL.revokeObjectURL(zipUrl), 3000);
     } catch (e: any) {
       console.error("ZIP Assembly Error:", e);
-      alert(`ZIP compilation failed on pipeline: ${e.message || e}`);
+      setErrorText(`ZIP compilation failed on pipeline: ${e.message || e}`);
+      trackEvent("conversion_failed", { toolId: "pdf-to-png", message: e.message || String(e), phase: "zip" });
     } finally {
       setLoading(false);
     }
@@ -290,6 +306,7 @@ export function PDFToPNG() {
     setPages([]);
     setExportProgress(0);
     setErrorText(null);
+    setSuccessText(null);
   };
 
   return (
@@ -385,6 +402,16 @@ export function PDFToPNG() {
                 </div>
               )}
 
+              {successText && !loading && !errorText && (
+                <div className="flex items-start gap-2 bg-green-50 text-green-700 p-4 rounded-xl border border-green-200 text-xs">
+                  <FileCheck className="h-4.5 w-4.5 shrink-0 text-green-600 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Conversion complete</span>
+                    <p className="mt-1">{successText}</p>
+                  </div>
+                </div>
+              )}
+
               {loading && pages.length === 0 ? (
                 <div className="text-center py-20 space-y-4">
                   <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#F59E0B] border-t-transparent" />
@@ -448,4 +475,3 @@ export function PDFToPNG() {
   );
 }
 export default PDFToPNG;
-

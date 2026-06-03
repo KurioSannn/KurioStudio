@@ -40,6 +40,11 @@ export function Footer() {
                   Creative Assistant
                 </button>
               </li>
+              <li>
+                <button onClick={() => navigate("/settings")} className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258] cursor-pointer">
+                  Privacy & Beta Info
+                </button>
+              </li>
             </ul>
           </div>
  
@@ -47,8 +52,7 @@ export function Footer() {
           <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#171717] mb-3">Compliance</h4>
             <p className="text-[10px] text-[#9A9187] leading-relaxed">
-              We process only user-uploaded assets. We do not support copyrighted media downloads 
-              or DRM bypassing. Files remain local inside browser sandboxes for client tasks.
+              Core file tools run locally in the browser. AI helper requests use a backend proxy and are rate limited during beta.
             </p>
           </div>
  

@@ -9,16 +9,16 @@ import { Trash2, History, Database, ArrowRight, ExternalLink, RefreshCw } from "
 export function WorkspacePage() {
   const { navigate } = useRoute();
   const [history, setHistory] = useState<WorkspaceItem[]>([]);
+  const [confirmWipe, setConfirmWipe] = useState(false);
 
   useEffect(() => {
     setHistory(loadWorkspaceHistory());
   }, []);
 
   const handleWipeHistory = () => {
-    if (confirm("Are you sure you want to flush all local workspace transaction cache? All file logs will be deleted.")) {
-      clearWorkspaceHistory();
-      setHistory([]);
-    }
+    clearWorkspaceHistory();
+    setHistory([]);
+    setConfirmWipe(false);
   };
 
   const getToolRoute = (toolId: string) => {
@@ -49,7 +49,7 @@ export function WorkspacePage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleWipeHistory}
+            onClick={() => setConfirmWipe(true)}
             className="text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200"
           >
             <Trash2 className="h-4 w-4" />
@@ -61,6 +61,19 @@ export function WorkspacePage() {
       {/* History log block */}
       {history.length > 0 ? (
         <div className="space-y-4">
+          {confirmWipe && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <span className="font-semibold">Clear all local workspace history? This only removes records stored in this browser.</span>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setConfirmWipe(false)} className="border border-red-200 bg-white text-xs">
+                  Cancel
+                </Button>
+                <Button variant="danger" size="sm" onClick={handleWipeHistory} className="text-xs">
+                  Clear history
+                </Button>
+              </div>
+            </div>
+          )}
           
           <div className="rounded-xl border border-[#FFF3D6] bg-[#FFF3D6]/35 p-4 text-xs text-accent-secondary flex items-start gap-2.5">
             <Database className="h-4.5 w-4.5 shrink-0" />

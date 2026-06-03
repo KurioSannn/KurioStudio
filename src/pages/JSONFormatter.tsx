@@ -7,6 +7,7 @@ import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
 import { Textarea } from "@/src/components/ui/textarea";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
+import { trackEvent } from "@/src/lib/analytics";
 import { Trash2, Brackets, CheckCircle2, AlertCircle, Copy, FileCode, Check } from "lucide-react";
 
 export function JSONFormatter() {
@@ -15,6 +16,7 @@ export function JSONFormatter() {
   const [tabSpacing, setTabSpacing] = useState<number>(2);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [successText, setSuccessText] = useState<string | null>(null);
 
   // Validation feedback indicators
   const [isValid, setIsValid] = useState<boolean | null>(null);
@@ -25,14 +27,16 @@ export function JSONFormatter() {
     reader.onload = (e) => {
       const text = e.target?.result as string;
       setInputText(text);
-      validateAndFormat(text, tabSpacing);
+      trackEvent("file_processed", { toolId: "json-formatter", fileType: selectedFile.type || ".json", fileSize: selectedFile.size });
+      validateAndFormat(text, tabSpacing, true);
     };
     reader.readAsText(selectedFile);
   };
 
-  const validateAndFormat = (text: string, spacingValue: number) => {
+  const validateAndFormat = (text: string, spacingValue: number, shouldTrack = false) => {
     setIsValid(null);
     setErrorFeedback(null);
+    setSuccessText(null);
     
     if (!text.trim()) {
       setOutputText("");
@@ -46,37 +50,52 @@ export function JSONFormatter() {
       // format spaced structure
       const formatted = JSON.stringify(parsed, null, spacingValue);
       setOutputText(formatted);
+      setSuccessText("JSON formatted and validated successfully.");
 
-      // Track usage history
-      addToWorkspaceHistory({
-        toolId: "json-formatter",
-        toolName: "JSON Formatter",
-        fileName: "formatted_payload.json",
-        fileSize: text.length,
-        outputType: "JSON Cleaned",
-        status: "completed",
-      });
+      if (shouldTrack) {
+        addToWorkspaceHistory({
+          toolId: "json-formatter",
+          toolName: "JSON Formatter",
+          fileName: "formatted_payload.json",
+          fileSize: text.length,
+          outputType: "JSON Cleaned",
+          status: "completed",
+        });
+        trackEvent("conversion_success", { toolId: "json-formatter", fileType: "application/json", fileSize: text.length });
+      }
     } catch (e: any) {
       setIsValid(false);
       setErrorFeedback(e.message || "Failed to parse JSON text.");
       setOutputText("");
+      if (shouldTrack) {
+        trackEvent("conversion_failed", { toolId: "json-formatter", message: e.message || "JSON parse failed" });
+      }
     }
   };
 
   const triggerMinify = () => {
     setIsValid(null);
     setErrorFeedback(null);
+    setSuccessText(null);
+    setCopied(false);
     
-    if (!inputText.trim()) return;
+    if (!inputText.trim()) {
+      setOutputText("");
+      return;
+    }
 
     try {
       const parsed = JSON.parse(inputText);
       setIsValid(true);
       const minified = JSON.stringify(parsed);
       setOutputText(minified);
+      setSuccessText("JSON minified successfully.");
+      trackEvent("conversion_success", { toolId: "json-formatter", fileType: "application/json", fileSize: inputText.length, mode: "minify" });
     } catch (e: any) {
       setIsValid(false);
       setErrorFeedback(e.message || "Failed to minify JSON text.");
+      setOutputText("");
+      trackEvent("conversion_failed", { toolId: "json-formatter", message: e.message || "JSON minify failed", mode: "minify" });
     }
   };
 
@@ -110,9 +129,9 @@ export function JSONFormatter() {
       const data = await response.json();
       if (data.success) {
         setInputText(data.result);
-        validateAndFormat(data.result, tabSpacing);
+        validateAndFormat(data.result, tabSpacing, true);
       } else {
-        setErrorFeedback("Gemini JSON repair failed. Please correct bracket structures manually.");
+        setErrorFeedback(data.message || "Gemini JSON repair failed. Please correct bracket structures manually.");
       }
     } catch (err) {
       setErrorFeedback("Gemini AI nodes are temporarily disconnected. Please inspect text syntax locally.");
@@ -133,6 +152,7 @@ export function JSONFormatter() {
     setOutputText("");
     setIsValid(null);
     setErrorFeedback(null);
+    setSuccessText(null);
   };
 
   return (
@@ -232,7 +252,7 @@ export function JSONFormatter() {
               <CheckCircle2 className="h-5 w-5 text-accent-secondary" />
               <div>
                 <span className="font-bold text-text-primary block">JSON document is valid</span>
-                <span className="text-[10px] text-text-secondary mt-0.5 block">Format compiled and validated successfully.</span>
+                <span className="text-[10px] text-text-secondary mt-0.5 block">{successText || "Format compiled and validated successfully."}</span>
               </div>
             </div>
           )}

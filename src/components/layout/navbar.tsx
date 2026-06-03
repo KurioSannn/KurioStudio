@@ -1,23 +1,21 @@
-import React, { useState } from "react";
+import React from "react";
 import { useRoute } from "@/src/context/RouteContext";
 import { AppRoute } from "@/src/lib/types";
-import { Button } from "@/src/components/ui/button";
-import { Search, Sliders, Play, Palette, Zap } from "lucide-react";
+import { trackEvent } from "@/src/lib/analytics";
 
 export function Navbar() {
   const { route, navigate } = useRoute();
-  const [searchOpen, setSearchOpen] = useState(false);
+  const feedbackUrl = "https://github.com/KurioSannn/KurioStudio/issues/new";
 
   const links: { label: string; to: AppRoute }[] = [
     { label: "Tools", to: "/tools" },
     { label: "Workspace", to: "/workspace" },
     { label: "AI Helper", to: "/ai-helper" },
-    { label: "Settings", to: "/settings" },
   ];
 
   return (
     <header className="sticky top-0 z-55 w-full border-b border-[#E7E2D8] bg-white">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 md:px-10">
+      <div className="mx-auto grid h-16 max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-4 px-6 md:px-10">
         
         {/* Left Brand Area */}
         <div 
@@ -29,7 +27,7 @@ export function Navbar() {
         </div>
 
         {/* Center Links */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden md:flex items-center justify-center gap-8 lg:gap-10">
           {links.map((link) => {
             const isActive = route === link.to || (link.to === "/tools" && route.startsWith("/tools/"));
             return (
@@ -46,22 +44,22 @@ export function Navbar() {
               </button>
             );
           })}
+          <a
+            href={feedbackUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => trackEvent("feedback_opened", { source: "navbar" })}
+            className="border-b-2 border-transparent py-1 text-sm font-medium text-[#6B6258] transition-colors duration-150 hover:text-[#171717]"
+          >
+            Feedback
+          </a>
         </nav>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate("/ai-helper")}
-            className="p-2 text-[#6B6258] hover:bg-[#F3F0EA] rounded-full transition-colors cursor-pointer"
-            title="Creative Workflows"
-            id="nav-helper-btn"
-          >
-            <Zap className="h-5 w-5" />
-          </button>
-
+        <div className="flex items-center justify-end">
           <button 
             onClick={() => navigate("/tools")}
-            className="px-5 py-2 bg-[#F59E0B] text-black font-semibold rounded-xl hover:shadow-md transition-all cursor-pointer text-sm"
+            className="px-4 py-2 md:px-5 bg-[#F59E0B] text-black font-semibold rounded-xl hover:shadow-md transition-all cursor-pointer text-sm whitespace-nowrap"
           >
             Start converting
           </button>
