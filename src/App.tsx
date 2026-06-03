@@ -13,6 +13,7 @@ import { AIHelperPreview } from "./components/home/ai-helper-preview";
 // System Pages
 import { ToolsDirectory } from "./pages/ToolsDirectory";
 import { PDFToPNG } from "./pages/PDFToPNG";
+import { ImageToPDF } from "./pages/ImageToPDF";
 import { CompressImage } from "./pages/CompressImage";
 import { ResizeImage } from "./pages/ResizeImage";
 import { LottiePreview } from "./pages/LottiePreview";
@@ -51,8 +52,9 @@ function MainAppRouter() {
       case "/tools/pdf-to-png":
         return <PDFToPNG />;
       
+      case "/tools/image-to-pdf":
       case "/tools/pdf-to-jpg":
-        return <ComingSoon toolName="PDF to JPG Converter" />;
+        return <ImageToPDF />;
       
       case "/tools/remove-bg":
         return <ComingSoon toolName="Background Remover" />;

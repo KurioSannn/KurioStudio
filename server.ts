@@ -217,7 +217,7 @@ app.post("/api/gemini", async (req: Request, res: Response): Promise<void> => {
       systemInstruction = `You are Kurio Studio's Intelligent Tool Router. 
 You analyze the user's creative task and recommend the correct tools from Kurio Studio's list:
 1. pdf-to-png (Convert PDF to separate PNG images)
-2. pdf-to-jpg (Convert PDF to JPEG)
+2. image-to-pdf (Combine images into one PDF)
 3. compress-image (Compress JPG, PNG, WebP)
 4. resize-image (Resize, crop or use social media presets for images)
 5. remove-bg (Erase image backgrounds)

@@ -64,7 +64,7 @@ export function AIHelperPreview() {
 
   const getToolRoute = (toolId: string): AppRoute => {
     if (toolId === "pdf-to-png") return "/tools/pdf-to-png";
-    if (toolId === "pdf-to-jpg") return "/tools/pdf-to-jpg";
+    if (toolId === "image-to-pdf") return "/tools/image-to-pdf";
     if (toolId === "compress-image") return "/tools/compress-image";
     if (toolId === "resize-image") return "/tools/resize-image";
     if (toolId === "remove-bg") return "/tools/remove-bg";
@@ -75,7 +75,7 @@ export function AIHelperPreview() {
 
   const getToolLabel = (toolId: string): string => {
     if (toolId === "pdf-to-png") return "PDF to PNG";
-    if (toolId === "pdf-to-jpg") return "PDF to JPG";
+    if (toolId === "image-to-pdf") return "Image to PDF";
     if (toolId === "compress-image") return "Image Compressor";
     if (toolId === "resize-image") return "Image Resizer";
     if (toolId === "remove-bg") return "Remove Background";

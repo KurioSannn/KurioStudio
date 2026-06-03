@@ -3,6 +3,7 @@ export type AppRoute =
   | "/tools"
   | "/tools/pdf-to-png"
   | "/tools/pdf-to-jpg"
+  | "/tools/image-to-pdf"
   | "/tools/remove-bg"
   | "/tools/compress-image"
   | "/tools/resize-image"
