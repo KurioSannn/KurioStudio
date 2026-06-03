@@ -85,7 +85,7 @@ export function WorkspacePage() {
                     <span className="text-[10px] font-bold text-accent-secondary bg-accent-bg py-0.5 px-2 rounded-md font-sans">
                       {record.toolName}
                     </span>
-                    <span className="text-[10px] text-text-muted font-mono">{new Date(record.timestamp).toLocaleTimeString()}</span>
+                    <span className="text-[10px] text-text-muted font-mono">{new Date(record.createdAt).toLocaleTimeString()}</span>
                   </div>
                   
                   <span className="text-xs font-bold text-text-primary font-sans block truncate max-w-full">

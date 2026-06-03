@@ -32,3 +32,11 @@ Kurio Studio is an all-in-one creative utility platform designed for creators, d
 - Accessible contrasting panels and high performance lift cards.
 - Bold display typography ("Outfit/Inter").
 - Absolute file security guarantee.
+
+## Public Launch Guardrails
+
+- Keep core conversion tools client-side when possible to reduce hosting and AI costs.
+- Protect `/api/gemini` with strict quota and prompt length limits before public release.
+- Do not expose `GEMINI_API_KEY` to browser code or public repositories.
+- Treat Gemini-powered helpers as limited or premium features.
+- Add persistent user accounts, subscription checks, and database-backed quota before charging users.

@@ -8,6 +8,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
+app.set("trust proxy", 1);
 
 // Set up server-side parsers for uploads and payloads using env-configured limits
 const fileSizeLimit = process.env.MAX_FILE_SIZE_MB ? `${process.env.MAX_FILE_SIZE_MB}mb` : "50mb";
@@ -17,7 +18,83 @@ app.use(express.urlencoded({ extended: true, limit: fileSizeLimit }));
 // Initialize GoogleGenAI SDK with telemetric instructions
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const AI_RATE_LIMIT_ENABLED = process.env.AI_RATE_LIMIT_ENABLED !== "false";
+const AI_DAILY_LIMIT = toPositiveInt(process.env.AI_DAILY_LIMIT, 10);
+const AI_MINUTE_LIMIT = toPositiveInt(process.env.AI_MINUTE_LIMIT, 3);
+const AI_MAX_PROMPT_CHARS = toPositiveInt(process.env.AI_MAX_PROMPT_CHARS, 2000);
 let ai: GoogleGenAI | null = null;
+
+type AIRateRecord = {
+  dailyWindowStart: number;
+  dailyCount: number;
+  minuteWindowStart: number;
+  minuteCount: number;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+const aiRateStore = new Map<string, AIRateRecord>();
+
+function toPositiveInt(value: string | undefined, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+function getClientIp(req: Request) {
+  const forwardedFor = req.headers["x-forwarded-for"];
+  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
+    return forwardedFor.split(",")[0].trim();
+  }
+  return req.ip || req.socket.remoteAddress || "unknown";
+}
+
+function checkAIRateLimit(req: Request) {
+  if (!AI_RATE_LIMIT_ENABLED) return null;
+
+  const now = Date.now();
+  const clientKey = getClientIp(req);
+  const record = aiRateStore.get(clientKey) || {
+    dailyWindowStart: now,
+    dailyCount: 0,
+    minuteWindowStart: now,
+    minuteCount: 0,
+  };
+
+  if (now - record.dailyWindowStart >= DAY_MS) {
+    record.dailyWindowStart = now;
+    record.dailyCount = 0;
+  }
+
+  if (now - record.minuteWindowStart >= MINUTE_MS) {
+    record.minuteWindowStart = now;
+    record.minuteCount = 0;
+  }
+
+  if (record.dailyCount >= AI_DAILY_LIMIT) {
+    aiRateStore.set(clientKey, record);
+    return {
+      scope: "daily",
+      retryAfterSeconds: Math.ceil((record.dailyWindowStart + DAY_MS - now) / 1000),
+      remainingDaily: 0,
+      remainingMinute: Math.max(0, AI_MINUTE_LIMIT - record.minuteCount),
+    };
+  }
+
+  if (record.minuteCount >= AI_MINUTE_LIMIT) {
+    aiRateStore.set(clientKey, record);
+    return {
+      scope: "minute",
+      retryAfterSeconds: Math.ceil((record.minuteWindowStart + MINUTE_MS - now) / 1000),
+      remainingDaily: Math.max(0, AI_DAILY_LIMIT - record.dailyCount),
+      remainingMinute: 0,
+    };
+  }
+
+  record.dailyCount += 1;
+  record.minuteCount += 1;
+  aiRateStore.set(clientKey, record);
+  return null;
+}
 
 if (GEMINI_API_KEY && GEMINI_API_KEY !== "MY_GEMINI_API_KEY") {
   try {
@@ -45,6 +122,35 @@ app.post("/api/gemini", async (req: Request, res: Response): Promise<void> => {
   
   if (!userInput) {
     res.status(400).json({ success: false, message: "userInput property is required" });
+    return;
+  }
+
+  if (String(userInput).length > AI_MAX_PROMPT_CHARS) {
+    res.status(413).json({
+      success: false,
+      message: `Prompt is too long. Keep AI requests under ${AI_MAX_PROMPT_CHARS} characters.`,
+    });
+    return;
+  }
+
+  const rateLimit = checkAIRateLimit(req);
+  if (rateLimit) {
+    res.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
+    res.status(429).json({
+      success: false,
+      message:
+        rateLimit.scope === "daily"
+          ? "Daily AI quota reached. Try again after the quota window resets."
+          : "Too many AI requests in a short time. Please wait before trying again.",
+      quota: {
+        scope: rateLimit.scope,
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        dailyLimit: AI_DAILY_LIMIT,
+        minuteLimit: AI_MINUTE_LIMIT,
+        remainingDaily: rateLimit.remainingDaily,
+        remainingMinute: rateLimit.remainingMinute,
+      },
+    });
     return;
   }
 

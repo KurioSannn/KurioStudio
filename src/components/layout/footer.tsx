@@ -13,16 +13,7 @@ export function Footer() {
           {/* Logo & Description */}
           <div className="md:col-span-2 space-y-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[#F59E0B] rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                  <polyline points="3.29 7 12 12 20.71 7" />
-                  <line x1="12" y1="22" x2="12" y2="12" />
-                </svg>
-              </div>
-              <span className="font-sans text-lg font-bold tracking-tight text-[#171717]">
-                Kurio <span className="text-[#F59E0B]">Studio</span>
-              </span>
+              <img src="/BrandingKurio.png" alt="Kurio Studio Logo" className="h-10 w-auto object-contain" />
             </div>
             <p className="text-xs text-[#6B6258] leading-relaxed max-w-md">
               Create, convert, and prepare assets faster. Kurio Studio delivers high-performance 

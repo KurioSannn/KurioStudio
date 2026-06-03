@@ -46,7 +46,7 @@ export function AIHelperPreview() {
         });
       } else {
         setResult({
-          result: "Could not classify workflow automatically. Let's check the complete toolbox.",
+          result: data.message || "Could not classify workflow automatically. Let's check the complete toolbox.",
           recommendedTools: [],
           workflowSteps: ["Browse index of tools", "Pick individual process modules"],
         });

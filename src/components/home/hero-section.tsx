@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useRoute } from "@/src/context/RouteContext";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, type Variants } from "motion/react";
 import { FileText, Scissors, Image, Play, Code2, RefreshCw } from "lucide-react";
 
 export function HeroSection() {
@@ -24,7 +24,7 @@ export function HeroSection() {
     return () => clearInterval(interval);
   }, [rotatingTexts.length]);
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: {},
     show: {
       transition: {
@@ -33,12 +33,12 @@ export function HeroSection() {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 16 },
     show: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+      transition: { duration: 0.55, ease: "easeOut" },
     },
   };
 
@@ -165,4 +165,3 @@ export function HeroSection() {
 }
 
 export default HeroSection;
-

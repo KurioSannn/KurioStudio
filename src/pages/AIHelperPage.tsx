@@ -67,7 +67,7 @@ export function AIHelperPage() {
       
       const botResponseText = data.success 
         ? data.result 
-        : "The service node returned an error during analysis. Please try again or examine characters.";
+        : data.message || "The service node returned an error during analysis. Please try again or examine characters.";
 
       setChatLog((prev) => [
         ...prev,

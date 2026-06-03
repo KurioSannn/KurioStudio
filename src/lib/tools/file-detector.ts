@@ -1,8 +1,11 @@
+import { AppRoute } from "../types";
+
 interface DetectedFileStats {
   category: "pdf" | "image" | "motion" | "video" | "developer" | "unsupported";
   recommendedToolId: string;
   name: string;
   extension: string;
+  slug: AppRoute;
 }
 
 export function detectFileType(fileName: string, mimeType?: string): DetectedFileStats {
@@ -14,17 +17,20 @@ export function detectFileType(fileName: string, mimeType?: string): DetectedFil
       recommendedToolId: "pdf-to-png",
       name: "PDF Document",
       extension: ".pdf",
+      slug: "/tools/pdf-to-png",
     };
   }
 
   if (["jpeg", "jpg", "png", "webp", "gif"].some(ext => extension === `.${ext}`) || mimeType?.startsWith("image/")) {
     const cleanExt = extension === ".jpeg" ? ".jpg" : extension;
     const recToolId = cleanExt === ".webp" ? "resize-image" : "compress-image";
+    const recSlug: AppRoute = cleanExt === ".webp" ? "/tools/resize-image" : "/tools/compress-image";
     return {
       category: "image",
       recommendedToolId: recToolId,
       name: `Image Asset (${extension.toUpperCase().replace(".", "")})`,
       extension: extension,
+      slug: recSlug,
     };
   }
 
@@ -34,6 +40,7 @@ export function detectFileType(fileName: string, mimeType?: string): DetectedFil
       recommendedToolId: "lottie-preview",
       name: "JSON Record",
       extension: ".json",
+      slug: "/tools/lottie-preview",
     };
   }
 
@@ -43,6 +50,7 @@ export function detectFileType(fileName: string, mimeType?: string): DetectedFil
       recommendedToolId: "lottie-to-mp4",
       name: "MP4 Video Clip",
       extension: ".mp4",
+      slug: "/tools/lottie-to-mp4",
     };
   }
 
@@ -51,6 +59,7 @@ export function detectFileType(fileName: string, mimeType?: string): DetectedFil
     recommendedToolId: "",
     name: "Unclassified Resource",
     extension: extension || "",
+    slug: "/tools",
   };
 }
 
