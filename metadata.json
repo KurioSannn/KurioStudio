@@ -1,0 +1,8 @@
+{
+  "name": "Kurio Studio",
+  "description": "Kurio Studio is an all-in-one creative utility platform for file conversion, asset cleanup, motion export, and creator workflow.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
