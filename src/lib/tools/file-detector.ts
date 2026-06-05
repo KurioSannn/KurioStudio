@@ -44,6 +44,16 @@ export function detectFileType(fileName: string, mimeType?: string): DetectedFil
     };
   }
 
+  if ([".docx", ".txt", ".md"].includes(extension)) {
+    return {
+      category: "developer",
+      recommendedToolId: "doc-to-md",
+      name: `Document Asset (${extension.toUpperCase().replace(".", "")})`,
+      extension,
+      slug: "/tools/doc-to-md",
+    };
+  }
+
   if (extension === ".mp4" || mimeType === "video/mp4") {
     return {
       category: "video",

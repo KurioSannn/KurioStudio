@@ -5,6 +5,7 @@ export type AppRoute =
   | "/tools/pdf-to-jpg"
   | "/tools/image-to-pdf"
   | "/tools/pdf-merge"
+  | "/tools/doc-to-md"
   | "/tools/remove-bg"
   | "/tools/compress-image"
   | "/tools/resize-image"

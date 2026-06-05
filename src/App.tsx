@@ -15,6 +15,7 @@ import { ToolsDirectory } from "./pages/ToolsDirectory";
 import { PDFToPNG } from "./pages/PDFToPNG";
 import { ImageToPDF } from "./pages/ImageToPDF";
 import { MergePDF } from "./pages/MergePDF";
+import { DocToMarkdown } from "./pages/DocToMarkdown";
 import { CompressImage } from "./pages/CompressImage";
 import { ResizeImage } from "./pages/ResizeImage";
 import { LottiePreview } from "./pages/LottiePreview";
@@ -59,6 +60,9 @@ function MainAppRouter() {
 
       case "/tools/pdf-merge":
         return <MergePDF />;
+
+      case "/tools/doc-to-md":
+        return <DocToMarkdown />;
       
       case "/tools/remove-bg":
         return <ComingSoon toolName="Background Remover" />;

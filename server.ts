@@ -231,6 +231,7 @@ You analyze the user's creative task and recommend the correct tools from Kurio 
 6. remove-bg (Erase image backgrounds)
 7. lottie-preview (Check and validate Lottie animation JSON files)
 8. json-formatter (Validate and pretty-print JSON files)
+9. doc-to-md (Convert text-based PDF, DOCX, TXT, or Markdown into Markdown without AI)
 
 You MUST return a JSON structure matching:
 {

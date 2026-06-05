@@ -29,7 +29,7 @@ export const TOOL_CATEGORIES = {
     name: "Developer Tools",
     description: "Utility tools for syntax checking, color matching and SVG exports.",
     icon: "Code2",
-    count: 5,
+    count: 6,
   },
   creator: {
     name: "Creator Tools",
@@ -69,6 +69,16 @@ export const TOOLS_LIST: ToolDefinition[] = [
     inputFormats: [".pdf"],
     outputFormats: [".pdf"],
     slug: "/tools/pdf-merge",
+  },
+  {
+    id: "doc-to-md",
+    name: "Document to Markdown",
+    description: "Extract text-based PDF, DOCX, TXT, or Markdown files into clean Markdown.",
+    category: "developer",
+    status: "ready",
+    inputFormats: [".pdf", ".docx", ".txt", ".md"],
+    outputFormats: [".md"],
+    slug: "/tools/doc-to-md",
   },
   {
     id: "compress-image",
