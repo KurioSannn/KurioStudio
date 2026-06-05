@@ -12,8 +12,10 @@ import {
   ArrowDown,
   ArrowUp,
   CheckCircle2,
+  ExternalLink,
   FileText,
   FolderUp,
+  GripVertical,
   Layers,
   Trash2,
 } from "lucide-react";
@@ -79,6 +81,7 @@ export function MergePDF() {
   const [successText, setSuccessText] = useState<string | null>(null);
   const [mergedUrl, setMergedUrl] = useState<string | null>(null);
   const [mergedSize, setMergedSize] = useState<number | undefined>(undefined);
+  const [draggedPdfId, setDraggedPdfId] = useState<string | null>(null);
 
   useEffect(() => {
     outputUrlRef.current = mergedUrl;
@@ -197,6 +200,21 @@ export function MergePDF() {
     });
   };
 
+  const reorderPdf = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+    resetOutput();
+    setPdfs((current) => {
+      const draggedIndex = current.findIndex((item) => item.id === draggedId);
+      const targetIndex = current.findIndex((item) => item.id === targetId);
+      if (draggedIndex < 0 || targetIndex < 0) return current;
+
+      const next = [...current];
+      const [draggedItem] = next.splice(draggedIndex, 1);
+      next.splice(targetIndex, 0, draggedItem);
+      return next;
+    });
+  };
+
   const clearAll = () => {
     setPdfs([]);
     resetOutput();
@@ -280,6 +298,11 @@ export function MergePDF() {
     if (event.dataTransfer.files.length > 0) {
       addFiles(event.dataTransfer.files);
     }
+  };
+
+  const openMergedPreview = () => {
+    if (!mergedUrl) return;
+    window.open(mergedUrl, "_blank", "noopener,noreferrer");
   };
 
   const totalPages = pdfs.reduce((total, item) => total + item.pageCount, 0);
@@ -389,14 +412,63 @@ export function MergePDF() {
               downloadLabel="Download merged PDF"
               isProcessing={loading}
             >
+              {mergedUrl && (
+                <div className="space-y-3 rounded-xl border border-brand-border bg-brand-secondary p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-text-primary">Merged PDF preview</h4>
+                      <p className="mt-0.5 text-[10px] text-text-secondary">Review the generated document before downloading.</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={openMergedPreview}
+                      className="gap-2 text-xs"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Open preview
+                    </Button>
+                  </div>
+                  <div className="overflow-hidden rounded-lg border border-brand-border bg-white">
+                    <iframe
+                      src={mergedUrl}
+                      title="Merged PDF preview"
+                      className="h-[360px] w-full"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3">
                 {pdfs.map((item, index) => (
                   <div
                     key={item.id}
-                    className="flex flex-col gap-4 rounded-xl border border-brand-border bg-white p-3 sm:flex-row sm:items-center"
+                    draggable={!loading}
+                    onDragStart={(event) => {
+                      setDraggedPdfId(item.id);
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("text/plain", item.id);
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "move";
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const droppedId = event.dataTransfer.getData("text/plain") || draggedPdfId;
+                      if (droppedId) reorderPdf(droppedId, item.id);
+                      setDraggedPdfId(null);
+                    }}
+                    onDragEnd={() => setDraggedPdfId(null)}
+                    className={`flex flex-col gap-4 rounded-xl border bg-white p-3 transition-colors sm:flex-row sm:items-center ${
+                      draggedPdfId === item.id
+                        ? "border-accent-primary bg-accent-bg/20 opacity-70"
+                        : "border-brand-border"
+                    } ${loading ? "" : "cursor-grab active:cursor-grabbing"}`}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-brand-border bg-brand-secondary">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center gap-1 rounded-lg border border-brand-border bg-brand-secondary">
+                        <GripVertical className="h-4 w-4 text-text-muted" aria-hidden="true" />
                         <FileText className="h-5 w-5 text-accent-secondary" />
                       </div>
                       <div className="min-w-0">
