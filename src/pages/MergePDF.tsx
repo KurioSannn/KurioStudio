@@ -4,6 +4,7 @@ import { SettingsPanel } from "@/src/components/tools/settings-panel";
 import { OutputPanel } from "@/src/components/tools/output-panel";
 import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
+import { Input } from "@/src/components/ui/input";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
 import { trackEvent } from "@/src/lib/analytics";
 import { formatBytes } from "@/src/lib/utils";
@@ -24,6 +25,12 @@ interface PdfMergeItem {
   id: string;
   file: File;
   pageCount: number;
+}
+
+interface MergeProgress {
+  current: number;
+  total: number;
+  fileName: string;
 }
 
 const ACCEPTED_EXTENSIONS = [".pdf"];
@@ -47,6 +54,22 @@ function formatMergedName(files: PdfMergeItem[]) {
     return files[0].file.name.replace(/\.pdf$/i, "") || "kurio-merged";
   }
   return `kurio-merged-${files.length}-pdfs`;
+}
+
+function normalizePdfFileName(fileName: string) {
+  const cleanedName = fileName
+    .trim()
+    .replace(/\.pdf$/i, "")
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "-")
+    .replace(/\s+/g, " ")
+    .replace(/-+/g, "-")
+    .trim();
+
+  return `${cleanedName || "kurio-merged-pdfs"}.pdf`;
+}
+
+function createDuplicateKey(item: PdfMergeItem) {
+  return `${item.file.name.toLowerCase()}-${item.file.size}`;
 }
 
 async function loadPdfPageCount(file: File) {
@@ -82,6 +105,9 @@ export function MergePDF() {
   const [mergedUrl, setMergedUrl] = useState<string | null>(null);
   const [mergedSize, setMergedSize] = useState<number | undefined>(undefined);
   const [draggedPdfId, setDraggedPdfId] = useState<string | null>(null);
+  const [outputFileName, setOutputFileName] = useState("kurio-merged-pdfs.pdf");
+  const [hasCustomOutputFileName, setHasCustomOutputFileName] = useState(false);
+  const [mergeProgress, setMergeProgress] = useState<MergeProgress | null>(null);
 
   useEffect(() => {
     outputUrlRef.current = mergedUrl;
@@ -92,6 +118,12 @@ export function MergePDF() {
       if (outputUrlRef.current) URL.revokeObjectURL(outputUrlRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!hasCustomOutputFileName) {
+      setOutputFileName(`${formatMergedName(pdfs)}.pdf`);
+    }
+  }, [hasCustomOutputFileName, pdfs]);
 
   const resetOutput = () => {
     if (mergedUrl) URL.revokeObjectURL(mergedUrl);
@@ -218,6 +250,8 @@ export function MergePDF() {
   const clearAll = () => {
     setPdfs([]);
     resetOutput();
+    setHasCustomOutputFileName(false);
+    setOutputFileName("kurio-merged-pdfs.pdf");
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -230,12 +264,19 @@ export function MergePDF() {
     setLoading(true);
     setErrorText(null);
     setSuccessText(null);
+    setMergeProgress(null);
 
     try {
       const { PDFDocument } = await import("pdf-lib");
       const outputPdf = await PDFDocument.create();
 
-      for (const item of pdfs) {
+      for (let index = 0; index < pdfs.length; index++) {
+        const item = pdfs[index];
+        setMergeProgress({
+          current: index + 1,
+          total: pdfs.length,
+          fileName: item.file.name,
+        });
         const sourceBytes = await item.file.arrayBuffer();
         const sourcePdf = await PDFDocument.load(sourceBytes);
         const pageIndexes = sourcePdf.getPageIndices();
@@ -253,12 +294,12 @@ export function MergePDF() {
       if (mergedUrl) URL.revokeObjectURL(mergedUrl);
       setMergedUrl(url);
       setMergedSize(blob.size);
-      setSuccessText(`Merged ${pdfs.length} PDF files into ${totalPages} pages successfully.`);
+      setSuccessText(`Merged ${pdfs.length} PDF files into ${totalPages} pages successfully as ${effectiveOutputFileName}.`);
 
       addToWorkspaceHistory({
         toolId: "pdf-merge",
         toolName: "Merge PDF Docs",
-        fileName: `${formatMergedName(pdfs)}.pdf`,
+        fileName: effectiveOutputFileName,
         fileSize: totalInputSize,
         outputType: "PDF",
         status: "completed",
@@ -279,6 +320,7 @@ export function MergePDF() {
         message,
       });
     } finally {
+      setMergeProgress(null);
       setLoading(false);
     }
   };
@@ -287,7 +329,7 @@ export function MergePDF() {
     if (!mergedUrl) return;
     const link = document.createElement("a");
     link.href = mergedUrl;
-    link.download = `${formatMergedName(pdfs)}.pdf`;
+    link.download = effectiveOutputFileName;
     link.click();
   };
 
@@ -307,6 +349,13 @@ export function MergePDF() {
 
   const totalPages = pdfs.reduce((total, item) => total + item.pageCount, 0);
   const totalInputSize = pdfs.reduce((total, item) => total + item.file.size, 0);
+  const effectiveOutputFileName = normalizePdfFileName(outputFileName);
+  const duplicateKeys = pdfs.reduce<Record<string, number>>((counts, item) => {
+    const key = createDuplicateKey(item);
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
+  const duplicateCount = pdfs.filter((item) => duplicateKeys[createDuplicateKey(item)] > 1).length;
 
   return (
     <ToolPageShell toolId="pdf-merge">
@@ -331,13 +380,37 @@ export function MergePDF() {
             </div>
 
             <div className="space-y-2 pt-4 border-t border-brand-soft-border">
+              <label htmlFor="merge-output-name" className="text-[10px] uppercase font-bold text-text-secondary block">
+                Output filename
+              </label>
+              <Input
+                id="merge-output-name"
+                value={outputFileName}
+                onChange={(event) => {
+                  setOutputFileName(event.target.value);
+                  setHasCustomOutputFileName(true);
+                  resetOutput();
+                }}
+                placeholder={`${formatMergedName(pdfs)}.pdf`}
+                className="text-xs"
+              />
+              <span className="text-[10px] text-text-muted block">
+                Export will download as {effectiveOutputFileName}
+              </span>
+            </div>
+
+            <div className="space-y-2 pt-4 border-t border-brand-soft-border">
               <Button
                 variant="primary"
                 onClick={mergePdfs}
                 disabled={loading || pdfs.length < 2}
                 className="w-full text-xs font-bold"
               >
-                {loading ? "Merging PDFs..." : "Merge PDF Files"}
+                {mergeProgress
+                  ? `Merging ${mergeProgress.current} of ${mergeProgress.total} files...`
+                  : loading
+                    ? "Merging PDFs..."
+                    : "Merge PDF Files"}
               </Button>
               {pdfs.length > 0 && (
                 <Button variant="ghost" size="sm" onClick={clearAll} className="w-full gap-2 text-xs border border-brand-border">
@@ -400,6 +473,31 @@ export function MergePDF() {
             <div className="flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 p-4 text-xs text-green-700">
               <CheckCircle2 className="mt-0.5 h-4.5 w-4.5 shrink-0 text-green-600" />
               <span>{successText}</span>
+            </div>
+          )}
+
+          {duplicateCount > 0 && (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+              <AlertCircle className="mt-0.5 h-4.5 w-4.5 shrink-0 text-amber-600" />
+              <span>{duplicateCount} queued PDF item{duplicateCount === 1 ? "" : "s"} look duplicated. They will still be merged in the order shown.</span>
+            </div>
+          )}
+
+          {mergeProgress && (
+            <div className="rounded-xl border border-brand-border bg-brand-secondary p-4 text-xs text-text-secondary">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-bold text-text-primary">
+                  Merging {mergeProgress.current} of {mergeProgress.total}
+                </span>
+                <span className="font-mono">{Math.round((mergeProgress.current / mergeProgress.total) * 100)}%</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-brand-border">
+                <div
+                  className="h-full rounded-full bg-accent-primary transition-all"
+                  style={{ width: `${Math.round((mergeProgress.current / mergeProgress.total) * 100)}%` }}
+                />
+              </div>
+              <p className="mt-2 truncate text-[10px]">Current file: {mergeProgress.fileName}</p>
             </div>
           )}
 
@@ -477,6 +575,11 @@ export function MergePDF() {
                             {index + 1}
                           </span>
                           <span className="truncate text-xs font-bold text-text-primary">{item.file.name}</span>
+                          {duplicateKeys[createDuplicateKey(item)] > 1 && (
+                            <span className="rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-700">
+                              duplicate
+                            </span>
+                          )}
                         </div>
                         <p className="mt-1 text-[10px] text-text-secondary">
                           {item.pageCount} page{item.pageCount === 1 ? "" : "s"} · {formatBytes(item.file.size)}
