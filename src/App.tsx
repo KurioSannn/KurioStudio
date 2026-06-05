@@ -14,6 +14,7 @@ import { AIHelperPreview } from "./components/home/ai-helper-preview";
 import { ToolsDirectory } from "./pages/ToolsDirectory";
 import { PDFToPNG } from "./pages/PDFToPNG";
 import { ImageToPDF } from "./pages/ImageToPDF";
+import { MergePDF } from "./pages/MergePDF";
 import { CompressImage } from "./pages/CompressImage";
 import { ResizeImage } from "./pages/ResizeImage";
 import { LottiePreview } from "./pages/LottiePreview";
@@ -55,6 +56,9 @@ function MainAppRouter() {
       case "/tools/image-to-pdf":
       case "/tools/pdf-to-jpg":
         return <ImageToPDF />;
+
+      case "/tools/pdf-merge":
+        return <MergePDF />;
       
       case "/tools/remove-bg":
         return <ComingSoon toolName="Background Remover" />;

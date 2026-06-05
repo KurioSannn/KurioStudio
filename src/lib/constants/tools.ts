@@ -63,12 +63,12 @@ export const TOOLS_LIST: ToolDefinition[] = [
   {
     id: "pdf-merge",
     name: "Merge PDF Docs",
-    description: "Combine multiple PDF records into a single consolidated file.",
+    description: "Combine multiple PDF documents into one ordered consolidated file.",
     category: "pdf",
-    status: "coming-soon",
+    status: "ready",
     inputFormats: [".pdf"],
     outputFormats: [".pdf"],
-    slug: "/tools" as any,
+    slug: "/tools/pdf-merge",
   },
   {
     id: "compress-image",

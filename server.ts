@@ -186,9 +186,16 @@ app.post("/api/gemini", async (req: Request, res: Response): Promise<void> => {
     let mockName = "export_asset.png";
 
     if (mode === "tool-router") {
-      mockResult = "To achieve this, you should use the PDF to PNG Converter. This allows you to split PDF pages into individual PNG images, which you can then customize or resize for your channels.";
-      mockTools = ["pdf-to-png", "resize-image"];
-      mockSteps = ["Upload PDF in PDF to PNG", "Select Scale factor", "Convert and download zip archive"];
+      const normalizedInput = String(userInput).toLowerCase();
+      if ((normalizedInput.includes("merge") || normalizedInput.includes("combine") || normalizedInput.includes("gabung")) && normalizedInput.includes("pdf")) {
+        mockResult = "Use Merge PDF Docs to combine multiple PDFs into one ordered document. Upload every PDF, arrange the queue, then download the merged file.";
+        mockTools = ["pdf-merge"];
+        mockSteps = ["Upload multiple PDFs in Merge PDF Docs", "Arrange the queue order", "Merge and download the final PDF"];
+      } else {
+        mockResult = "To achieve this, you should use the PDF to PNG Converter. This allows you to split PDF pages into individual PNG images, which you can then customize or resize for your channels.";
+        mockTools = ["pdf-to-png", "resize-image"];
+        mockSteps = ["Upload PDF in PDF to PNG", "Select Scale factor", "Convert and download zip archive"];
+      }
     } else if (mode === "caption-helper" || mode === "captions-helper") {
       mockResult = `✨ Here are your generated copy options:\n\nOption 1: Elevate your brand assets with Kurio Studio. Clean, converted, and fast. 🚀\nOption 2: Creator workflow simplified. From PDF to Lottie previews inside one focused workspace. 🎨\n\nHashtags: #creators #assets #design #kurio #workflow`;
     } else if (mode === "lottie-helper") {
@@ -218,11 +225,12 @@ app.post("/api/gemini", async (req: Request, res: Response): Promise<void> => {
 You analyze the user's creative task and recommend the correct tools from Kurio Studio's list:
 1. pdf-to-png (Convert PDF to separate PNG images)
 2. image-to-pdf (Combine images into one PDF)
-3. compress-image (Compress JPG, PNG, WebP)
-4. resize-image (Resize, crop or use social media presets for images)
-5. remove-bg (Erase image backgrounds)
-6. lottie-preview (Check and validate Lottie animation JSON files)
-7. json-formatter (Validate and pretty-print JSON files)
+3. pdf-merge (Combine multiple PDFs into one ordered PDF)
+4. compress-image (Compress JPG, PNG, WebP)
+5. resize-image (Resize, crop or use social media presets for images)
+6. remove-bg (Erase image backgrounds)
+7. lottie-preview (Check and validate Lottie animation JSON files)
+8. json-formatter (Validate and pretty-print JSON files)
 
 You MUST return a JSON structure matching:
 {
