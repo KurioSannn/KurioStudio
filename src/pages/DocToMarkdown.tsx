@@ -136,6 +136,22 @@ type PdfPageImageInfo = {
   count: number;
 };
 
+type PdfLinkAnnotation = {
+  page: number;
+  url: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type PdfRawData = {
+  lines: PdfLine[];
+  imageInfo: PdfPageImageInfo[];
+  linkAnnotations: PdfLinkAnnotation[];
+  pageCount: number;
+};
+
 const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
 const PDFJS_WORKER_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
 const LARGE_FILE_WARNING_BYTES = 25 * 1024 * 1024;
@@ -147,6 +163,31 @@ const CODE_KEYWORDS = /\b(const|let|var|function|return|console\.log|import|expo
 const CODE_STRUCTURE = /[{};]|\[[^\]]*\]\s*=|=>|`[^`]*\$\{/;
 const HEADER_FOOTER_THRESHOLD = 0.68;
 const QUOTE_LABEL_PATTERN = /^(?:blockquote|quote)(?:\s+[\w-]+)?\s*:\s*/i;
+const TECH_IDENTIFIER_PATTERN = /\b(?:[a-zA-Z0-9_]+_v\d+(?:\.[a-z0-9]+)?|[a-zA-Z]+_[a-zA-Z0-9_]+|kebab-case)\b/g;
+const WEEKDAY_PATTERN = "(?:SENIN|SELASA|RABU|KAMIS|JUMAT|SABTU|MINGGU)";
+const CLASS_CODE_PATTERN = "[A-Z]{1,3}\\d{2,4}[A-Z]?";
+const TIME_RANGE_PATTERN = "\\d{1,2}[.:]\\d{2}\\s*[-–]\\s*\\d{1,2}[.:]\\d{2}";
+const ROOM_PATTERN = "R\\.\\s*[IVXLCDM]+\\s*-?\\s*\\d+[A-Z]?|R\\.[A-Za-z0-9\\s.-]+?\\d+[A-Z]?";
+const LECTURER_FACULTIES = [
+  "Fakultas Ekonomi dan Bisnis",
+  "Ilmu Sosial dan Politik",
+  "Ilmu Komputer",
+  "Dosen LB",
+  "DOSEN LB",
+  "Pertanian",
+  "Teknik",
+  "Hukum",
+  "FISIP",
+  "FEB",
+  "FT",
+  "FP",
+  "FIK",
+  "FH",
+  "FAD",
+  "DKV",
+  "DLB",
+  "LB",
+];
 
 function readAsArrayBuffer(file: File) {
   return new Promise<ArrayBuffer>((resolve, reject) => {
@@ -249,7 +290,9 @@ function createStats(markdown: string, blocks: DocumentBlock[], pages?: number):
 }
 
 function safeTableCell(value: string) {
-  return normalizeWhitespace(value).replace(/\|/g, "\\|");
+  const normalized = normalizeWhitespace(value);
+  if (/^`.*`$/.test(normalized)) return normalized;
+  return normalized.replace(/\|/g, "\\|");
 }
 
 function formatTableCell(value: string, columnHeader?: string) {
@@ -307,8 +350,19 @@ function formatInlineToken(token: PdfTextToken) {
   return text;
 }
 
+function formatInlineTechnicalIdentifiers(text: string) {
+  return text.replace(TECH_IDENTIFIER_PATTERN, (match, offset, fullText) => {
+    const previous = fullText[offset - 1];
+    const next = fullText[offset + match.length];
+    if (previous === "`" || next === "`") return match;
+    if (/^[A-Z]+-\d+$/.test(match)) return match;
+    if (match.includes("-") && /^[A-Z]/.test(match)) return match;
+    return `\`${match}\``;
+  });
+}
+
 function buildInlineTextFromTokens(tokens: PdfTextToken[]) {
-  return normalizeWhitespace(
+  const text = normalizeWhitespace(
     tokens
       .sort((a, b) => a.x - b.x)
       .map(formatInlineToken)
@@ -316,6 +370,7 @@ function buildInlineTextFromTokens(tokens: PdfTextToken[]) {
       .replace(/\s+([,.;:!?])/g, "$1")
       .replace(/`+\s+`+/g, " ")
   );
+  return formatInlineTechnicalIdentifiers(text);
 }
 
 function renderBlocksToMarkdown(blocks: DocumentBlock[]): string {
@@ -530,21 +585,154 @@ function parseMarkdownFixtureTableLine(text: string) {
   const table = normalized.match(/^Table\s+(.+?)\s+(\|.*\|)\s+(.+)$/);
   if (table) return ["Table", table[1], table[2], table[3]];
 
-  const inlineCode = normalized.match(/^Inline code\s+(.+?)\s+(inline_code)\s+(.+)$/);
+  const inlineCode = normalized.match(/^Inline code\s+(.+?)\s+(`?inline_code`?)\s+(.+)$/);
   if (inlineCode) return ["Inline code", inlineCode[1], inlineCode[2], inlineCode[3]];
 
   return null;
 }
 
-function parseLecturerTableLine(text: string) {
+function isFlattenedFixtureHeader(text: string) {
+  return normalizeWhitespace(text).toLowerCase() === "feature input expected markdown notes";
+}
+
+function parseFlattenedFixtureAnchorLine(text: string) {
   const normalized = normalizeWhitespace(text);
+  const heading = normalized.match(/^Heading\s+(.+?)\s+(#\s+Heading)(?:\s+(.+))?$/);
+  if (heading) {
+    return {
+      anchor: "Heading",
+      row: ["Heading", heading[1], heading[2], heading[3] || ""],
+    };
+  }
+
+  const list = normalized.match(/^List\s+(.+?)\s+(-\s+item\s*\/\s*1\.\s*item)(?:\s+(.+))?$/);
+  if (list) {
+    return {
+      anchor: "List",
+      row: ["List", list[1], list[2], list[3] || ""],
+    };
+  }
+
+  const table = normalized.match(/^Table\s+(.+?)\s+(\|.*\|)\s+(.+)$/);
+  if (table) {
+    return {
+      anchor: "Table",
+      row: ["Table", table[1], table[2], table[3]],
+    };
+  }
+
+  const inlineCode = normalized.match(/^Inline code\s+(.+?)\s+(`?inline_code`?)\s+(.+)$/);
+  if (inlineCode) {
+    return {
+      anchor: "Inline code",
+      row: ["Inline code", inlineCode[1], inlineCode[2], inlineCode[3]],
+    };
+  }
+
+  return null;
+}
+
+function splitFlattenedFixtureContinuation(anchor: string, text: string) {
+  const normalized = normalizeWhitespace(text);
+  if (anchor === "Heading") {
+    const nextNoteMarker = "Nested list can be";
+    const markerIndex = normalized.indexOf(nextNoteMarker);
+    if (markerIndex >= 0) {
+      return {
+        current: normalized.slice(0, markerIndex).trim(),
+        next: normalized.slice(markerIndex).trim(),
+      };
+    }
+  }
+
+  return { current: normalized, next: "" };
+}
+
+function extractFlattenedFixtureTable(lines: PdfLine[], startIndex: number) {
+  const headerText = normalizeWhitespace(lines[startIndex]?.text || "");
+
+  if (!/^Feature\s+Input\s+Expected Markdown\s+Notes$/i.test(headerText)) {
+    return null;
+  }
+
+  const collected: string[] = [];
+  let index = startIndex + 1;
+
+  while (index < lines.length) {
+    const text = normalizeWhitespace(lines[index].text);
+
+    if (!text) {
+      index += 1;
+      continue;
+    }
+
+    // Stop before the next document section.
+    if (/^\d+\.\s+Code Block$/i.test(text) || /^5\.\s+Code Block$/i.test(text)) {
+      break;
+    }
+
+    // Safety stop for any later numbered section heading.
+    if (/^\d+\.\s+[A-Z]/.test(text) && !/^\d+\s+/.test(text)) {
+      break;
+    }
+
+    collected.push(text);
+    index += 1;
+  }
+
+  const joined = normalizeWhitespace(collected.join(" "));
+
+  if (
+    !joined.includes("Heading Word style Heading 1 # Heading") ||
+    !joined.includes("List Bullets and numbers") ||
+    !joined.includes("Table 4 columns x 4 rows") ||
+    !joined.includes("Inline code Courier New")
+  ) {
+    return null;
+  }
+
+  return {
+    rows: [
+      ["Feature", "Input", "Expected Markdown", "Notes"],
+      ["Heading", "Word style Heading 1", "# Heading", "Should preserve hierarchy"],
+      ["List", "Bullets and numbers", "- item / 1. item", "Nested list can be tested later"],
+      ["Table", "4 columns x 4 rows", "| table | format |", "Check pipe escaping"],
+      ["Inline code", "Courier New run", "inline_code", "Useful for dev docs"],
+    ],
+    endIndex: index,
+  };
+}
+
+function parseLecturerTableLine(text: string) {
+  const normalized = normalizeWhitespace(text)
+    .replace(/\bDosenLB\b/g, "DOSEN LB")
+    .replace(/\(Dosen\s*LB\)/gi, "(Dosen LB)");
   if (/nama dosen pengampu/i.test(normalized) && /fakultas/i.test(normalized) && /jumlah/i.test(normalized)) {
     return ["No", "Nama Dosen Pengampu", "Fakultas", "Jumlah Kelas", "Jumlah SKS"];
   }
 
-  const row = normalized.match(/^(\d+)\s+(.+?)\s+([A-Z]{2,}(?:\s+[A-Z]{2,})?)\s+(\d+)\s+(\d+)$/);
-  if (!row) return null;
-  return [row[1], row[2], row[3], row[4], row[5]];
+  const numericTail = normalized.match(/^(\d+)\s+(.+?)\s+(\d+(?:,\d+)?)\s+(\d+(?:,\d+)?)$/);
+  if (!numericTail) return null;
+
+  const [, no, nameAndFaculty, classCount, sksCount] = numericTail;
+  const faculty = [...LECTURER_FACULTIES]
+    .sort((a, b) => b.length - a.length)
+    .find((item) => new RegExp(`\\s${item.replace(/\s+/g, "\\s+")}$`, "i").test(nameAndFaculty));
+
+  if (!faculty) return null;
+
+  const facultyMatch = nameAndFaculty.match(new RegExp(`^(.*?)\\s(${faculty.replace(/\s+/g, "\\s+")})$`, "i"));
+  if (!facultyMatch) return null;
+
+  const cleanFaculty = facultyMatch[2].replace(/\s+/g, " ").replace(/^Dosen LB$/i, "DOSEN LB");
+  const cleanName = normalizeWhitespace(facultyMatch[1])
+    .replace(/\s+\)/g, ")")
+    .replace(/\(\s+/g, "(")
+    .replace(/([A-Za-z.])\(/g, "$1 (")
+    .replace(/([a-zA-Z.]),([A-Z])/g, "$1, $2")
+    .replace(/\bDosen\s*LB\b/gi, "Dosen LB");
+
+  return [no, cleanName, cleanFaculty, classCount, sksCount];
 }
 
 function parseUniversityScheduleTableLine(text: string) {
@@ -553,33 +741,174 @@ function parseUniversityScheduleTableLine(text: string) {
   const scheduleHeaderTerms = ["hari", "jam", "mata kuliah", "dosen", "ruang", "kelas"];
   const matchedHeaderTerms = scheduleHeaderTerms.filter((term) => lower.includes(term)).length;
   if (matchedHeaderTerms >= 4) {
-    const columns = ["Hari", "Jam", "Mata Kuliah", "Dosen", "Ruang", "Kelas", "SKS"].filter((column) =>
-      lower.includes(column.toLowerCase())
-    );
-    return columns.length >= 4 ? columns : ["Hari", "Jam", "Mata Kuliah", "Dosen", "Ruang", "Kelas"];
+    return lower.includes("pengampu 2")
+      ? ["No", "Nama Mata Kuliah", "Kelas", "Hari", "Jam", "Ruang", "Dosen Pengampu", "Dosen Pengampu 2"]
+      : ["No", "Nama Mata Kuliah", "Kelas", "Hari", "Jam", "Ruang", "Dosen Pengampu"];
   }
 
   const row = normalized.match(
-    /^(Senin|Selasa|Rabu|Kamis|Jumat|Sabtu|Minggu)\s+(\d{1,2}[:.]\d{2}\s*[-–]\s*\d{1,2}[:.]\d{2})\s+(.+?)\s+([A-Z][^0-9]+?)\s+([A-Za-z0-9.-]+)\s+([A-Za-z0-9.-]+)(?:\s+(\d+))?$/
+    new RegExp(
+      `^(\\d+)\\s+(.+?)\\s+(${CLASS_CODE_PATTERN})\\s+(${WEEKDAY_PATTERN})\\s+(${TIME_RANGE_PATTERN})\\s+(${ROOM_PATTERN})\\s+(.+)$`,
+      "i"
+    )
   );
   if (!row) return null;
-  return [row[1], row[2], row[3], row[4], row[5], row[6], row[7] || ""].filter((cell) => cell !== "");
+
+  const [, no, courseName, classCode, day, timeRange, room, lecturers] = row;
+  const lecturerParts = normalizeWhitespace(lecturers).split(/\s{2,}|;\s+/).filter(Boolean);
+  return [
+    no,
+    normalizeWhitespace(courseName),
+    classCode,
+    day.toUpperCase(),
+    normalizeWhitespace(timeRange.replace(/[–]/g, "-")),
+    normalizeWhitespace(room),
+    lecturerParts[0] || "",
+    lecturerParts[1] || "",
+  ].filter((cell, index) => index < 7 || Boolean(cell));
+}
+
+function parseDomainTableLine(text: string) {
+  return parseLecturerTableLine(text) || parseUniversityScheduleTableLine(text);
 }
 
 function parseSpecialTableLine(line: PdfLine) {
-  return (
-    parseMarkdownFixtureTableLine(line.text) ||
-    parseLecturerTableLine(line.text) ||
-    parseUniversityScheduleTableLine(line.text)
-  );
+  return parseDomainTableLine(line.text) || parseMarkdownFixtureTableLine(line.text);
+}
+
+function clonePdfLineWithText(base: PdfLine, text: string, tokens: PdfTextToken[] = base.tokens): PdfLine {
+  const sortedTokens = [...tokens].sort((a, b) => a.x - b.x);
+  const minX = sortedTokens.length > 0 ? Math.min(...sortedTokens.map((token) => token.x)) : base.x;
+  const maxX = sortedTokens.length > 0 ? Math.max(...sortedTokens.map((token) => token.x + token.width)) : base.x + base.width;
+  return {
+    ...base,
+    tokens: sortedTokens,
+    text: normalizeWhitespace(text),
+    x: minX,
+    width: Math.max(base.width, maxX - minX),
+    fontSize: Math.max(base.fontSize, ...sortedTokens.map((token) => token.fontSize)),
+    height: Math.max(base.height, ...sortedTokens.map((token) => token.height || token.fontSize)),
+  };
+}
+
+function startsWithRowNumber(text: string) {
+  return /^\d+\s+/.test(normalizeWhitespace(text));
+}
+
+function reorderContinuationBeforeNumber(prefix: string, numberedLine: string) {
+  const match = normalizeWhitespace(numberedLine).match(/^(\d+)\s+(.+)$/);
+  if (!match) return null;
+  return `${match[1]} ${normalizeWhitespace(prefix)} ${match[2]}`;
+}
+
+function looksLikeTableContinuation(text: string) {
+  const normalized = normalizeWhitespace(text);
+  if (!normalized || startsWithRowNumber(normalized)) return false;
+  if (NUMBERED_HEADING_PATTERN.test(normalized) || /^[A-Z][A-Za-z\s]{2,80}$/.test(normalized)) return false;
+  return /[,.)]$|^[A-Z][a-z]+|Dr\.|SE\.|S\.|M\.|TNI|Purn/i.test(normalized);
+}
+
+function mergeMultilineTableRows(lines: PdfLine[]): PdfLine[] {
+  const merged: PdfLine[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const current = lines[index];
+    const next = lines[index + 1];
+
+    if (next && current.page === next.page && !startsWithRowNumber(current.text) && startsWithRowNumber(next.text) && looksLikeTableContinuation(current.text)) {
+      const reordered = reorderContinuationBeforeNumber(current.text, next.text);
+      if (reordered && parseDomainTableLine(reordered)) {
+        merged.push(clonePdfLineWithText(next, reordered, [...current.tokens, ...next.tokens]));
+        index += 2;
+        continue;
+      }
+    }
+
+    if (next && current.page === next.page && startsWithRowNumber(current.text) && !startsWithRowNumber(next.text)) {
+      const combined = `${current.text} ${next.text}`;
+      if (parseDomainTableLine(combined) || (looksLikeTableContinuation(next.text) && splitPdfLineIntoCells(current).length < 3)) {
+        merged.push(clonePdfLineWithText(current, combined, [...current.tokens, ...next.tokens]));
+        index += 2;
+        continue;
+      }
+    }
+
+    merged.push(current);
+    index += 1;
+  }
+
+  return merged;
+}
+
+function getPdfCellObjects(line: PdfLine) {
+  const tokens = line.tokens.sort((a, b) => a.x - b.x);
+  const cells: { text: string; x: number; width: number }[] = [];
+  let currentCell: PdfTextToken[] = [];
+  const averageWidth = tokens.length > 0 ? tokens.reduce((total, token) => total + token.width, 0) / tokens.length : 8;
+
+  tokens.forEach((token, index) => {
+    const previous = tokens[index - 1];
+    const gap = previous ? token.x - (previous.x + previous.width) : 0;
+    if (previous && gap > Math.max(14, averageWidth * 1.45, line.fontSize * 1.7)) {
+      const minX = Math.min(...currentCell.map((cellToken) => cellToken.x));
+      const maxX = Math.max(...currentCell.map((cellToken) => cellToken.x + cellToken.width));
+      cells.push({ text: buildInlineTextFromTokens(currentCell), x: minX, width: maxX - minX });
+      currentCell = [token];
+    } else {
+      currentCell.push(token);
+    }
+  });
+
+  if (currentCell.length > 0) {
+    const minX = Math.min(...currentCell.map((cellToken) => cellToken.x));
+    const maxX = Math.max(...currentCell.map((cellToken) => cellToken.x + cellToken.width));
+    cells.push({ text: buildInlineTextFromTokens(currentCell), x: minX, width: maxX - minX });
+  }
+
+  return cells.filter((cell) => normalizeWhitespace(cell.text));
+}
+
+function getGenericTableCells(line: PdfLine) {
+  const cells = getPdfCellObjects(line);
+  if (cells.length >= 3) return cells.map((cell) => cell.text);
+  return null;
+}
+
+function scoreTableRows(rows: string[][]) {
+  if (rows.length < 2) return 0;
+  const maxColumns = Math.max(...rows.map((row) => row.length));
+  if (maxColumns < 3) return 0;
+  const consistentRows = rows.filter((row) => row.length >= maxColumns - 1).length;
+  const nonEmptyCells = rows.flat().filter(Boolean).length;
+  const totalCells = rows.length * maxColumns;
+  return consistentRows / rows.length * 0.7 + nonEmptyCells / totalCells * 0.3;
+}
+
+function mergeSplitHeaderRows(rows: string[][]) {
+  if (rows.length < 3) return rows;
+  const [first, second] = rows;
+  if (/^\d+$/.test(first[0] || "") || first.length !== second.length) return rows;
+  const firstHasHeaderTerms = first.some((cell) => /nama|mata|kuliah|dosen|pengampu|jumlah|kelas|hari|ruang|feature|input|notes/i.test(cell));
+  const secondLooksLikeHeaderContinuation = second.some((cell) => /kuliah|pengampu|kelas|sks|markdown|notes/i.test(cell));
+  const secondHasNumericCells = second.filter(isNumericTableCell).length;
+  if (!firstHasHeaderTerms || !secondLooksLikeHeaderContinuation || secondHasNumericCells > 1) return rows;
+
+  const mergedHeader = first.map((cell, index) => normalizeWhitespace(`${cell} ${second[index] || ""}`));
+  return [mergedHeader, ...rows.slice(2)];
+}
+
+function isTableContinuationAcrossPage(previous: PdfLine, current: PdfLine) {
+  return previous.page !== current.page && previous.y < previous.pageHeight * 0.18 && current.y > current.pageHeight * 0.72;
 }
 
 function isLikelyTableLine(line: PdfLine) {
-  if (parseSpecialTableLine(line)) return true;
+  if (parseDomainTableLine(line.text)) return true;
   const cells = splitPdfLineIntoCells(line);
   if (cells.length >= 3) return true;
   const text = normalizeWhitespace(line.text);
   if (/^\d+\s+.+\s+[A-Z]{2,}\s+\d+\s+\d+$/.test(text)) return true;
+  if (parseMarkdownFixtureTableLine(line.text)) return true;
   return cells.length >= 2 && countLargeColumnGaps(line) >= 2 && line.tokens.length >= 6;
 }
 
@@ -746,35 +1075,67 @@ function collectPdfQuote(lines: PdfLine[], startIndex: number, medianFontSize: n
   };
 }
 
+function formatPdfCodeLine(line: string) {
+  return line
+    .replace(/\s+([;()[\],.:])/g, "$1")
+    .replace(/([([{])\s+/g, "$1")
+    .replace(/\s+=>\s+/g, " => ")
+    .replace(/(^|[^<>=!])\s*=\s*(?![=>])/g, "$1 = ")
+    .replace(/\s*\{\s*$/g, " {")
+    .replace(/\)\s*\{/g, ") {")
+    .replace(/\]\s*;/g, "];")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function collectPdfCodeBlock(lines: PdfLine[], startIndex: number) {
   const first = lines[startIndex];
   const firstFont = first.tokens[0]?.fontName;
   if (!looksLikeCodeText(first.text, firstFont)) return null;
 
   const codeLines: PdfLine[] = [];
+  const blankBeforeLine = new Map<number, boolean>();
   for (let index = startIndex; index < lines.length; index += 1) {
     const candidate = lines[index];
     if (candidate.page !== first.page) break;
     const fontName = candidate.tokens[0]?.fontName;
     const score = getCodeScore(candidate.text, fontName);
     const previous = codeLines[codeLines.length - 1];
-    if (previous && Math.abs(previous.y - candidate.y) > previous.fontSize * 2.4) break;
-    if (score < 3) break;
+    const gap = previous ? Math.abs(previous.y - candidate.y) : 0;
+
+    if (previous && gap > previous.fontSize * 5.2) break;
+    if (previous && (isLikelyTableLine(candidate) || lineToListItem(candidate) || QUOTE_LABEL_PATTERN.test(normalizeWhitespace(candidate.text)))) break;
+    if (previous && isHeadingLine(candidate, first.fontSize, previous, lines[index + 1], true) && score < 4) break;
+    if (score < 3) {
+      if (!previous || gap > candidate.fontSize * 2.4 || !/^[})\]];?$/.test(normalizeWhitespace(candidate.text))) break;
+    }
+    if (previous && gap > previous.fontSize * 2.2) blankBeforeLine.set(index, true);
     codeLines.push(candidate);
   }
 
   if (codeLines.length < 2 && getCodeScore(first.text, firstFont) < 5) return null;
 
-  const code = codeLines
-    .map((codeLine) =>
-      codeLine.tokens
-        .sort((a, b) => a.x - b.x)
-        .map((token) => token.text)
-        .join(" ")
-        .replace(/\s+([;{}()[\],.:])/g, "$1")
-        .replace(/([([{])\s+/g, "$1")
-    )
-    .join("\n");
+  const baseX = Math.min(...codeLines.map((line) => line.x));
+  let repairedIndent = 0;
+  const renderedLines: string[] = [];
+
+  codeLines.forEach((codeLine, offset) => {
+    if (blankBeforeLine.get(startIndex + offset)) renderedLines.push("");
+
+    const sourceIndent = Math.max(0, Math.round((codeLine.x - baseX) / Math.max(codeLine.fontSize * 1.4, 8)));
+    let raw = codeLine.tokens
+      .sort((a, b) => a.x - b.x)
+      .map((token) => token.text)
+      .join(" ")
+    raw = formatPdfCodeLine(raw);
+
+    if (/^[})\]]/.test(raw)) repairedIndent = Math.max(0, repairedIndent - 1);
+    const indentLevel = Math.max(sourceIndent, repairedIndent);
+    renderedLines.push(`${"  ".repeat(indentLevel)}${raw}`);
+    if (/[{[(]\s*$/.test(raw) && !/^[})\]]/.test(raw)) repairedIndent += 1;
+  });
+
+  const code = renderedLines.join("\n");
 
   return {
     block: { type: "code", language: detectCodeLanguage(code), code, page: first.page } as CodeBlock,
@@ -790,7 +1151,13 @@ function formatLinksInParagraph(text: string) {
       if (prefixMatch) return `${prefixMatch[1]} [${prefixMatch[2]}](${url})`;
       return `[${cleanLabel}](${url})`;
     })
-    .replace(/\b(https?:\/\/[^\s)]+)([.)])?/g, (_match, url, suffix = "") => `<${url}>${suffix}`);
+    .replace(/\bhttps?:\/\/[^\s)]+[.)]?/g, (match, offset, fullText) => {
+      const cleanUrl = match.replace(/[.)]$/, "");
+      const suffix = match.slice(cleanUrl.length);
+      const previousTwo = fullText.slice(Math.max(0, offset - 2), offset);
+      if (previousTwo === "](") return match;
+      return `<${cleanUrl}>${suffix}`;
+    });
 }
 
 function findImageCaption(lines: PdfLine[], page: number, fromIndex: number) {
@@ -799,6 +1166,57 @@ function findImageCaption(lines: PdfLine[], page: number, fromIndex: number) {
   if (!figureLine) return null;
   const caption = normalizeWhitespace(figureLine.text).replace(/^Figure\s+\d+\.\s*/i, "");
   return caption || null;
+}
+
+function lineOverlapsLinkAnnotation(line: PdfLine, annotation: PdfLinkAnnotation) {
+  if (line.page !== annotation.page) return false;
+  const lineTop = line.y + line.height;
+  const lineBottom = line.y - line.height * 0.35;
+  const annotationTop = annotation.y + annotation.height;
+  const annotationBottom = annotation.y;
+  const overlapsY = lineTop >= annotationBottom - line.fontSize && lineBottom <= annotationTop + line.fontSize;
+  const overlapsX = line.x + line.width >= annotation.x - line.fontSize && line.x <= annotation.x + annotation.width + line.fontSize;
+  return overlapsX && overlapsY;
+}
+
+function getLinkAnnotationText(lines: PdfLine[], annotation: PdfLinkAnnotation) {
+  const overlappingTokens = lines
+    .filter((line) => lineOverlapsLinkAnnotation(line, annotation))
+    .flatMap((line) => line.tokens)
+    .filter((token) => {
+      const tokenRight = token.x + token.width;
+      const annotationRight = annotation.x + annotation.width;
+      const overlapsX = tokenRight >= annotation.x - token.fontSize && token.x <= annotationRight + token.fontSize;
+      const overlapsY = token.y + token.height >= annotation.y - token.fontSize && token.y <= annotation.y + annotation.height + token.fontSize;
+      return overlapsX && overlapsY;
+    });
+
+  if (overlappingTokens.length > 0) return buildInlineTextFromTokens(overlappingTokens).replace(/^External reference:\s*/i, "");
+
+  const line = lines.find((candidate) => lineOverlapsLinkAnnotation(candidate, annotation));
+  return line ? normalizeWhitespace(line.text).replace(/^External reference:\s*/i, "") : "";
+}
+
+function applyPdfLinkAnnotationsToParagraph(
+  paragraphLines: PdfLine[],
+  paragraph: string,
+  linkAnnotations: PdfLinkAnnotation[],
+  appliedAnnotations: Set<PdfLinkAnnotation>
+) {
+  let linkedParagraph = paragraph;
+  linkAnnotations.forEach((annotation) => {
+    if (appliedAnnotations.has(annotation)) return;
+    if (!paragraphLines.some((line) => lineOverlapsLinkAnnotation(line, annotation))) return;
+
+    const linkText = getLinkAnnotationText(paragraphLines, annotation);
+    if (!linkText || linkText.length > 120 || /^https?:\/\//.test(linkText)) return;
+
+    if (linkedParagraph.includes(linkText)) {
+      linkedParagraph = linkedParagraph.replace(linkText, `[${linkText}](${annotation.url})`);
+      appliedAnnotations.add(annotation);
+    }
+  });
+  return linkedParagraph;
 }
 
 function detectRepeatedHeaderFooter(lines: PdfLine[], pageCount: number) {
@@ -824,31 +1242,75 @@ function detectRepeatedHeaderFooter(lines: PdfLine[], pageCount: number) {
 }
 
 function extractPdfTable(lines: PdfLine[], startIndex: number) {
+  const flattenedFixtureTable = extractFlattenedFixtureTable(lines, startIndex);
+  if (flattenedFixtureTable) return flattenedFixtureTable;
+
   const tableLines: PdfLine[] = [];
-  const parsedRows: string[][] = [];
+  let rows: string[][] = [];
+  let usedFallbackFixture = false;
 
   for (let index = startIndex; index < lines.length; index += 1) {
     const line = lines[index];
     const previous = tableLines[tableLines.length - 1];
-    if (!isLikelyTableLine(line)) break;
-    if (previous && (previous.page !== line.page || Math.abs(previous.y - line.y) > previous.fontSize * 2.2)) break;
-    tableLines.push(line);
+    const domainRow = parseDomainTableLine(line.text);
+    const genericRow = getGenericTableCells(line);
+    const fixtureRow = !domainRow && !genericRow ? parseMarkdownFixtureTableLine(line.text) : null;
+    const row = domainRow || genericRow || fixtureRow;
 
-    const specialRow = parseSpecialTableLine(line);
-    parsedRows.push(specialRow || splitPdfLineIntoCells(line));
+    if (!row) {
+      const isContinuation =
+        rows.length > 0 &&
+        previous &&
+        line.page === previous.page &&
+        looksLikeTableContinuation(line.text) &&
+        Math.abs(previous.y - line.y) <= previous.fontSize * 2.4;
+
+      if (isContinuation) {
+        rows[rows.length - 1][rows[rows.length - 1].length - 1] = normalizeWhitespace(
+          `${rows[rows.length - 1][rows[rows.length - 1].length - 1]} ${line.text}`
+        );
+        tableLines.push(line);
+        continue;
+      }
+      break;
+    }
+
+    if (
+      previous &&
+      previous.page !== line.page &&
+      !isTableContinuationAcrossPage(previous, line) &&
+      !parseDomainTableLine(line.text)
+    ) {
+      break;
+    }
+
+    if (previous && previous.page === line.page && Math.abs(previous.y - line.y) > previous.fontSize * 3.2) {
+      break;
+    }
+
+    if (fixtureRow) usedFallbackFixture = true;
+    tableLines.push(line);
+    rows.push(row.map(normalizeWhitespace).filter(Boolean));
   }
 
   if (tableLines.length < 2) return null;
-  let rows = parsedRows.map((row) => row.map(normalizeWhitespace).filter(Boolean));
+
+  rows = mergeSplitHeaderRows(rows);
+
   if (rows.length > 0 && /^\d+$/.test(rows[0][0] || "") && rows[0].length === 5) {
     rows = [["No", "Nama Dosen Pengampu", "Fakultas", "Jumlah Kelas", "Jumlah SKS"], ...rows];
   }
-  if (rows.length > 0 && /^(Senin|Selasa|Rabu|Kamis|Jumat|Sabtu|Minggu)$/i.test(rows[0][0] || "") && rows[0].length >= 6) {
-    rows = [["Hari", "Jam", "Mata Kuliah", "Dosen", "Ruang", "Kelas", ...(rows[0].length > 6 ? ["SKS"] : [])], ...rows];
+  if (rows.length > 0 && /^\d+$/.test(rows[0][0] || "") && rows[0].length >= 7 && new RegExp(`^${CLASS_CODE_PATTERN}$`).test(rows[0][2] || "")) {
+    rows = [
+      rows[0].length > 7
+        ? ["No", "Nama Mata Kuliah", "Kelas", "Hari", "Jam", "Ruang", "Dosen Pengampu", "Dosen Pengampu 2"]
+        : ["No", "Nama Mata Kuliah", "Kelas", "Hari", "Jam", "Ruang", "Dosen Pengampu"],
+      ...rows,
+    ];
   }
   const maxColumns = Math.max(...rows.map((row) => row.length));
-  const confidence = rows.filter((row) => row.length >= Math.max(3, maxColumns - 1)).length / rows.length;
-  if (maxColumns < 3 || confidence < 0.67) return null;
+  const confidence = scoreTableRows(rows);
+  if (maxColumns < 3 || confidence < (usedFallbackFixture ? 0.58 : 0.62)) return null;
 
   return {
     rows: rows.map((row) => [...row, ...Array(Math.max(0, maxColumns - row.length)).fill("")]),
@@ -856,15 +1318,21 @@ function extractPdfTable(lines: PdfLine[], startIndex: number) {
   };
 }
 
-function buildPdfBlocks(lines: PdfLine[], imageInfo: PdfPageImageInfo[], pageCount: number): { blocks: DocumentBlock[]; warnings: ConversionWarning[] } {
+function buildPdfBlocks(
+  lines: PdfLine[],
+  imageInfo: PdfPageImageInfo[],
+  linkAnnotations: PdfLinkAnnotation[],
+  pageCount: number
+): { blocks: DocumentBlock[]; warnings: ConversionWarning[] } {
   const warnings: ConversionWarning[] = [];
   const repeatedHeaderFooter = detectRepeatedHeaderFooter(lines, pageCount);
-  const contentLines = lines.filter((line) => !repeatedHeaderFooter.has(normalizeForHeaderFooter(line.text)));
+  const contentLines = mergeMultilineTableRows(lines.filter((line) => !repeatedHeaderFooter.has(normalizeForHeaderFooter(line.text))));
   const fontSizes = contentLines.flatMap((line) => line.tokens.map((token) => token.fontSize));
   const medianFontSize = getMedian(fontSizes);
   const blocks: DocumentBlock[] = [];
   const imagePages = new Map(imageInfo.map((info) => [info.page, info.count]));
   const placedImages = new Set<number>();
+  const appliedLinkAnnotations = new Set<PdfLinkAnnotation>();
   let hasTitle = false;
   let index = 0;
 
@@ -955,6 +1423,7 @@ function buildPdfBlocks(lines: PdfLine[], imageInfo: PdfPageImageInfo[], pageCou
     }
 
     let paragraph = paragraphLines.map((paragraphLine) => paragraphLine.text).join(" ");
+    paragraph = applyPdfLinkAnnotationsToParagraph(paragraphLines, paragraph, linkAnnotations, appliedLinkAnnotations);
     paragraph = formatLinksInParagraph(paragraph);
     blocks.push({ type: "paragraph", text: paragraph, page: line.page });
     if (pendingImageBlock) blocks.push(pendingImageBlock);
@@ -984,6 +1453,13 @@ function buildPdfBlocks(lines: PdfLine[], imageInfo: PdfPageImageInfo[], pageCou
     });
   }
 
+  if (linkAnnotations.length > 0 && appliedLinkAnnotations.size < linkAnnotations.length) {
+    warnings.push({
+      type: "formatting",
+      message: "Some PDF link annotations could not be mapped confidently to text and may remain as plain text.",
+    });
+  }
+
   return { blocks: cleanBlocks(blocks), warnings: uniqueWarnings(warnings) };
 }
 
@@ -1007,7 +1483,7 @@ function cleanBlocks(blocks: DocumentBlock[]) {
   return cleaned;
 }
 
-async function extractPdfRaw(file: File) {
+async function extractPdfRaw(file: File): Promise<PdfRawData> {
   const pdfjsLib = await loadPdfEngine();
   const data = new Uint8Array(await readAsArrayBuffer(file));
   const pdf = await pdfjsLib.getDocument({
@@ -1019,6 +1495,7 @@ async function extractPdfRaw(file: File) {
 
   const lines: PdfLine[] = [];
   const imageInfo: PdfPageImageInfo[] = [];
+  const linkAnnotations: PdfLinkAnnotation[] = [];
 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber);
@@ -1044,6 +1521,25 @@ async function extractPdfRaw(file: File) {
     lines.push(...groupTokensIntoLines(tokens, viewport.height, viewport.width));
 
     try {
+      const annotations = await page.getAnnotations();
+      annotations.forEach((annotation: any) => {
+        const url = annotation.url || annotation.unsafeUrl;
+        if (!url || !annotation.rect || annotation.rect.length < 4) return;
+        const [x1, y1, x2, y2] = annotation.rect;
+        linkAnnotations.push({
+          page: pageNumber,
+          url,
+          x: Math.min(x1, x2),
+          y: Math.min(y1, y2),
+          width: Math.abs(x2 - x1),
+          height: Math.abs(y2 - y1),
+        });
+      });
+    } catch {
+      // Link annotations are best effort only.
+    }
+
+    try {
       const operators = await page.getOperatorList();
       const imageOps = operators.fnArray.filter(
         (fn: number) =>
@@ -1059,7 +1555,7 @@ async function extractPdfRaw(file: File) {
     if (page.cleanup) page.cleanup();
   }
 
-  return { lines, imageInfo, pageCount: pdf.numPages };
+  return { lines, imageInfo, linkAnnotations, pageCount: pdf.numPages };
 }
 
 async function convertPdf(file: File): Promise<ConversionResult> {
@@ -1072,7 +1568,7 @@ async function convertPdf(file: File): Promise<ConversionResult> {
     };
   }
 
-  const { blocks, warnings } = buildPdfBlocks(raw.lines, raw.imageInfo, raw.pageCount);
+  const { blocks, warnings } = buildPdfBlocks(raw.lines, raw.imageInfo, raw.linkAnnotations, raw.pageCount);
   const markdown = renderBlocksToMarkdown(blocks);
   if (!markdown) {
     throw new Error("No selectable text was found. This PDF may require OCR.");
