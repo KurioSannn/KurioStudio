@@ -1,6 +1,7 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import { RouteProvider, useRoute } from "./context/RouteContext";
 import { AppShell } from "./components/layout/app-shell";
+import { AppRoute } from "./lib/types";
 
 // Homepage Sections
 import { HeroSection } from "./components/home/hero-section";
@@ -10,27 +11,36 @@ import { FeaturedTools } from "./components/home/featured-tools";
 import { HowItWorks } from "./components/home/how-it-works";
 import { AIHelperPreview } from "./components/home/ai-helper-preview";
 
-// System Pages
-import { ToolsDirectory } from "./pages/ToolsDirectory";
-import { PDFToPNG } from "./pages/PDFToPNG";
-import { ImageToPDF } from "./pages/ImageToPDF";
-import { MergePDF } from "./pages/MergePDF";
-import { DocToMarkdown } from "./pages/DocToMarkdown";
-import { CompressImage } from "./pages/CompressImage";
-import { ResizeImage } from "./pages/ResizeImage";
-import { LottiePreview } from "./pages/LottiePreview";
-import { JSONFormatter } from "./pages/JSONFormatter";
-import { WorkspacePage } from "./pages/WorkspacePage";
-import { AIHelperPage } from "./pages/AIHelperPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { ComingSoon } from "./pages/ComingSoon";
+const ToolsDirectory = lazy(() => import("./pages/ToolsDirectory"));
+const PDFToPNG = lazy(() => import("./pages/PDFToPNG"));
+const ImageToPDF = lazy(() => import("./pages/ImageToPDF"));
+const MergePDF = lazy(() => import("./pages/MergePDF"));
+const DocToMarkdown = lazy(() => import("./pages/DocToMarkdown"));
+const CompressImage = lazy(() => import("./pages/CompressImage"));
+const ResizeImage = lazy(() => import("./pages/ResizeImage"));
+const LottiePreview = lazy(() => import("./pages/LottiePreview"));
+const JSONFormatter = lazy(() => import("./pages/JSONFormatter"));
+const WorkspacePage = lazy(() => import("./pages/WorkspacePage"));
+const AIHelperPage = lazy(() => import("./pages/AIHelperPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const ComingSoon = lazy(() => import("./pages/ComingSoon"));
+
+function RouteLoading() {
+  return (
+    <div className="mx-auto flex min-h-[420px] max-w-7xl items-center justify-center px-6" aria-label="Loading page">
+      <div className="h-9 w-9 animate-spin rounded-full border-2 border-brand-border border-t-accent-secondary" />
+    </div>
+  );
+}
 
 function MainAppRouter() {
   const { route } = useRoute();
 
   // Conditional rendering based on localized state hashes
   const renderRouteView = () => {
-    switch (route) {
+    const routePath = route.split("?")[0] as AppRoute;
+
+    switch (routePath) {
       case "/":
         return (
           <div className="animate-fade-in">
@@ -97,7 +107,11 @@ function MainAppRouter() {
     }
   };
 
-  return <AppShell>{renderRouteView()}</AppShell>;
+  return (
+    <AppShell>
+      <Suspense fallback={<RouteLoading />}>{renderRouteView()}</Suspense>
+    </AppShell>
+  );
 }
 
 export function App() {

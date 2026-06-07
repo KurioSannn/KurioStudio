@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRoute } from "@/src/context/RouteContext";
 import { AppRoute } from "@/src/lib/types";
 import { trackEvent } from "@/src/lib/analytics";
+import { Menu, X } from "lucide-react";
 
 export function Navbar() {
   const { route, navigate } = useRoute();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const feedbackUrl = "https://github.com/KurioSannn/KurioStudio/issues/new";
 
   const links: { label: string; to: AppRoute }[] = [
@@ -12,6 +14,15 @@ export function Navbar() {
     { label: "Workspace", to: "/workspace" },
     { label: "AI Helper", to: "/ai-helper" },
   ];
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [route]);
+
+  const goToRoute = (to: AppRoute) => {
+    setIsMenuOpen(false);
+    navigate(to);
+  };
 
   return (
     <header className="sticky top-0 z-55 w-full border-b border-[#E7E2D8] bg-white">
@@ -33,7 +44,7 @@ export function Navbar() {
             return (
               <button
                 key={link.to}
-                onClick={() => navigate(link.to)}
+                onClick={() => goToRoute(link.to)}
                 className={`text-sm font-medium transition-colors duration-150 py-1 border-b-2 ${
                   isActive
                     ? "text-[#171717] border-[#F59E0B] font-semibold"
@@ -56,16 +67,65 @@ export function Navbar() {
         </nav>
 
         {/* Right Actions */}
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-end gap-2">
           <button 
-            onClick={() => navigate("/tools")}
-            className="px-4 py-2 md:px-5 bg-[#F59E0B] text-black font-semibold rounded-xl hover:shadow-md transition-all cursor-pointer text-sm whitespace-nowrap"
+            onClick={() => goToRoute("/tools")}
+            className="hidden px-4 py-2 text-sm font-semibold text-black transition-all bg-[#F59E0B] rounded-xl cursor-pointer hover:shadow-md whitespace-nowrap sm:inline-flex md:px-5"
           >
             Start converting
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((current) => !current)}
+            aria-label={isMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={isMenuOpen}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#E7E2D8] text-[#171717] transition-colors hover:bg-[#FFF8E6] md:hidden"
+          >
+            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
 
       </div>
+      {isMenuOpen && (
+        <div className="border-t border-[#E7E2D8] bg-white px-6 py-4 shadow-sm md:hidden">
+          <nav className="mx-auto flex max-w-7xl flex-col gap-1">
+            {links.map((link) => {
+              const isActive = route === link.to || (link.to === "/tools" && route.startsWith("/tools"));
+              return (
+                <button
+                  key={link.to}
+                  onClick={() => goToRoute(link.to)}
+                  className={`flex min-h-11 items-center rounded-lg px-3 text-left text-sm font-semibold transition-colors ${
+                    isActive
+                      ? "bg-[#FFF8E6] text-[#171717]"
+                      : "text-[#6B6258] hover:bg-[#F8F5EF] hover:text-[#171717]"
+                  }`}
+                >
+                  {link.label}
+                </button>
+              );
+            })}
+            <a
+              href={feedbackUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => {
+                setIsMenuOpen(false);
+                trackEvent("feedback_opened", { source: "mobile_navbar" });
+              }}
+              className="flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-[#6B6258] transition-colors hover:bg-[#F8F5EF] hover:text-[#171717]"
+            >
+              Feedback
+            </a>
+            <button
+              onClick={() => goToRoute("/tools")}
+              className="mt-2 flex min-h-11 items-center justify-center rounded-lg bg-[#F59E0B] px-4 text-sm font-bold text-black transition-all hover:shadow-md"
+            >
+              Start converting
+            </button>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

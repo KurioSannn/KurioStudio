@@ -1,6 +1,5 @@
 import React from "react";
-import { TOOL_CATEGORIES, TOOLS_LIST } from "@/src/lib/constants/tools";
-import { useRoute } from "@/src/context/RouteContext";
+import { TOOL_CATEGORIES } from "@/src/lib/constants/tools";
 import { FileText, Image, Clapperboard, Film, Code2, Layers, ArrowUpRight } from "lucide-react";
 
 const ICON_MAP = {
@@ -13,8 +12,6 @@ const ICON_MAP = {
 };
 
 export function ToolCategoryGrid() {
-  const { navigate } = useRoute();
-
   const handleCategoryClick = (catKey: string) => {
     // Navigate to tools list with preselected category filter
     // Hash routing allows us to append URL search parameters easily
@@ -35,7 +32,6 @@ export function ToolCategoryGrid() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {Object.entries(TOOL_CATEGORIES).map(([key, value]) => {
           const Icon = ICON_MAP[value.icon as keyof typeof ICON_MAP] || Layers;
-          const count = TOOLS_LIST.filter(tool => tool.category === key).length;
           
           return (
             <div
@@ -59,7 +55,7 @@ export function ToolCategoryGrid() {
               </div>
 
               <div className="mt-6 pt-4 border-t border-brand-soft/40 flex items-center justify-between text-xs font-semibold text-text-muted group-hover:text-accent-secondary transition-colors">
-                <span>{count} module{count !== 1 ? 's' : ''} available</span>
+                <span>{value.count} module{value.count !== 1 ? 's' : ''} available</span>
                 <span className="underline">View modules</span>
               </div>
             </div>

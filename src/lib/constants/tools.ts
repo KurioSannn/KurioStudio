@@ -1,41 +1,35 @@
 import { ToolDefinition } from "../types";
 
-export const TOOL_CATEGORIES = {
+const TOOL_CATEGORY_DETAILS = {
   pdf: {
     name: "PDF Tools",
     description: "Convert, split, merge and optimize PDF documents.",
     icon: "FileText",
-    count: 6,
   },
   image: {
     name: "Image Tools",
     description: "Compress, resize, translate and polish vector/raster pictures.",
     icon: "Image",
-    count: 8,
   },
   motion: {
     name: "Motion Tools",
     description: "Lottie validation, animation inspections, and custom player frames.",
     icon: "Clapperboard",
-    count: 5,
   },
   video: {
     name: "Video Tools",
     description: "GIF encoders, frame extractors, and high compression filters.",
     icon: "Film",
-    count: 4,
   },
   developer: {
     name: "Developer Tools",
     description: "Utility tools for syntax checking, color matching and SVG exports.",
     icon: "Code2",
-    count: 6,
   },
   creator: {
     name: "Creator Tools",
     description: "Format social posts, write copy with AI guidance, and generate tag sets.",
     icon: "Layers",
-    count: 7,
   },
 } as const;
 
@@ -141,3 +135,20 @@ export const TOOLS_LIST: ToolDefinition[] = [
     slug: "/tools/json-formatter",
   },
 ];
+
+type ToolCategoryKey = keyof typeof TOOL_CATEGORY_DETAILS;
+
+export const TOOL_CATEGORIES = Object.fromEntries(
+  Object.entries(TOOL_CATEGORY_DETAILS).map(([key, value]) => {
+    const category = key as ToolCategoryKey;
+    return [
+      category,
+      {
+        ...value,
+        count: TOOLS_LIST.filter((tool) => tool.category === category).length,
+      },
+    ];
+  })
+) as {
+  [Key in ToolCategoryKey]: (typeof TOOL_CATEGORY_DETAILS)[Key] & { count: number };
+};
