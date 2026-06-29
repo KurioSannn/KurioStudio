@@ -187,7 +187,15 @@ app.post("/api/gemini", async (req: Request, res: Response): Promise<void> => {
 
     if (mode === "tool-router") {
       const normalizedInput = String(userInput).toLowerCase();
-      if ((normalizedInput.includes("merge") || normalizedInput.includes("combine") || normalizedInput.includes("gabung")) && normalizedInput.includes("pdf")) {
+      if ((normalizedInput.includes("compress") || normalizedInput.includes("reduce") || normalizedInput.includes("smaller") || normalizedInput.includes("file size")) && normalizedInput.includes("pdf")) {
+        mockResult = "Use PDF Compressor to reduce PDF file size without changing the physical page dimensions. Choose Light, Recommended, or Strong Compression, then download the browser-generated PDF.";
+        mockTools = ["pdf-compressor"];
+        mockSteps = ["Upload one PDF in PDF Compressor", "Choose a compression mode", "Compress and download the new PDF"];
+      } else if ((normalizedInput.includes("resize") || normalizedInput.includes("page size")) && normalizedInput.includes("pdf")) {
+        mockResult = "Use Resize PDF to change PDF pages to A4, Letter, Legal, A3, A5, or a custom page size. Upload one PDF, choose sizing and scaling settings, then download the browser-generated PDF.";
+        mockTools = ["resize-pdf"];
+        mockSteps = ["Upload one PDF in Resize PDF", "Choose page size, orientation, scaling, and margins", "Resize and download the new PDF"];
+      } else if ((normalizedInput.includes("merge") || normalizedInput.includes("combine") || normalizedInput.includes("gabung")) && normalizedInput.includes("pdf")) {
         mockResult = "Use Merge PDF Docs to combine multiple PDFs into one ordered document. Upload every PDF, arrange the queue, then download the merged file.";
         mockTools = ["pdf-merge"];
         mockSteps = ["Upload multiple PDFs in Merge PDF Docs", "Arrange the queue order", "Merge and download the final PDF"];
@@ -226,12 +234,14 @@ You analyze the user's creative task and recommend the correct tools from Kurio 
 1. pdf-to-png (Convert PDF to separate PNG images)
 2. image-to-pdf (Combine images into one PDF)
 3. pdf-merge (Combine multiple PDFs into one ordered PDF)
-4. compress-image (Compress JPG, PNG, WebP)
-5. resize-image (Resize, crop or use social media presets for images)
-6. remove-bg (Erase image backgrounds)
-7. lottie-preview (Check and validate Lottie animation JSON files)
-8. json-formatter (Validate and pretty-print JSON files)
-9. doc-to-md (Convert text-based PDF, DOCX, TXT, or Markdown into Markdown without AI)
+4. resize-pdf (Resize PDF pages to standard or custom page sizes)
+5. pdf-compressor (Reduce PDF file size without changing page dimensions)
+6. compress-image (Compress JPG, PNG, WebP)
+7. resize-image (Resize, crop or use social media presets for images)
+8. remove-bg (Erase image backgrounds)
+9. lottie-preview (Check and validate Lottie animation JSON files)
+10. json-formatter (Validate and pretty-print JSON files)
+11. doc-to-md (Convert text-based PDF, DOCX, TXT, or Markdown into Markdown without AI)
 
 You MUST return a JSON structure matching:
 {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ToolPageShell } from "@/src/components/tools/tool-page-shell";
 import { UploadDropZone } from "@/src/components/tools/upload-drop-zone";
 import { SettingsPanel } from "@/src/components/tools/settings-panel";
@@ -7,6 +7,7 @@ import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
+import { takePendingToolFile } from "@/src/lib/workspace/pending-file";
 import { trackEvent } from "@/src/lib/analytics";
 import { Trash2, CheckCircle, AlertCircle } from "lucide-react";
 
@@ -70,6 +71,11 @@ export function ResizeImage() {
       trackEvent("conversion_failed", { toolId: "resize-image", message: "Image decode failed" });
     };
   };
+
+  useEffect(() => {
+    const pending = takePendingToolFile("resize-image");
+    if (pending) handleFileSelected(pending.file);
+  }, []);
 
   const processResize = (
     img: HTMLImageElement,

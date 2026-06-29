@@ -6,6 +6,7 @@ import { OutputPanel } from "@/src/components/tools/output-panel";
 import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
+import { takePendingToolFile } from "@/src/lib/workspace/pending-file";
 import { trackEvent } from "@/src/lib/analytics";
 import { Trash2, Image as ImageIcon, Sliders, CheckCircle, AlertCircle } from "lucide-react";
 
@@ -49,6 +50,11 @@ export function CompressImage() {
     // Process initial compression
     processCompression(selectedFile, quality, outputFormat, 100);
   };
+
+  useEffect(() => {
+    const pending = takePendingToolFile("compress-image");
+    if (pending) handleFileSelected(pending.file);
+  }, []);
 
   const processCompression = (
     sourceFile: File,

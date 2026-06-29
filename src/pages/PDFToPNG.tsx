@@ -6,6 +6,7 @@ import { OutputPanel } from "@/src/components/tools/output-panel";
 import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
+import { takePendingToolFile } from "@/src/lib/workspace/pending-file";
 import { trackEvent } from "@/src/lib/analytics";
 import { formatBytes } from "@/src/lib/utils";
 import { Download, FileCheck, Layers, Info, Trash2, AlertCircle } from "lucide-react";
@@ -130,6 +131,11 @@ export function PDFToPNG() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const pending = takePendingToolFile("pdf-to-png");
+    if (pending) handleFileSelected(pending.file);
+  }, []);
 
   const getCanvasBlob = (canvas: HTMLCanvasElement): Promise<Blob | null> => {
     return new Promise((resolve) => {

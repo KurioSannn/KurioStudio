@@ -15,6 +15,8 @@ const ToolsDirectory = lazy(() => import("./pages/ToolsDirectory"));
 const PDFToPNG = lazy(() => import("./pages/PDFToPNG"));
 const ImageToPDF = lazy(() => import("./pages/ImageToPDF"));
 const MergePDF = lazy(() => import("./pages/MergePDF"));
+const ResizePDF = lazy(() => import("./pages/ResizePDF"));
+const PDFCompressor = lazy(() => import("./pages/PDFCompressor"));
 const DocToMarkdown = lazy(() => import("./pages/DocToMarkdown"));
 const CompressImage = lazy(() => import("./pages/CompressImage"));
 const ResizeImage = lazy(() => import("./pages/ResizeImage"));
@@ -70,6 +72,12 @@ function MainAppRouter() {
 
       case "/tools/pdf-merge":
         return <MergePDF />;
+
+      case "/tools/resize-pdf":
+        return <ResizePDF />;
+
+      case "/tools/pdf-compressor":
+        return <PDFCompressor />;
 
       case "/tools/doc-to-md":
         return <DocToMarkdown />;

@@ -6,6 +6,7 @@ import { Button } from "../ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card";
 import { FileUp, FileText, Image, Code2, AlertTriangle, ArrowRight, CheckCircle } from "lucide-react";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
+import { setPendingToolFile } from "@/src/lib/workspace/pending-file";
 
 export function QuickDropZone() {
   const { navigate } = useRoute();
@@ -32,14 +33,14 @@ export function QuickDropZone() {
     setDetection(result);
     setStatus("selected");
 
-    // Pre-seed workspace history database for UX persistence
+    // Pre-seed workspace history as a ready item. The selected file itself stays in memory only.
     addToWorkspaceHistory({
       toolId: result.recommendedToolId || "general",
       toolName: result.name,
       fileName: file.name,
       fileSize: file.size,
       outputType: result.extension,
-      status: "completed",
+      status: "idle",
     });
   };
 
@@ -78,6 +79,12 @@ export function QuickDropZone() {
     setDetection(null);
     setStatus("idle");
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const openRecommendedTool = () => {
+    if (!uploadedFile || !detection?.recommendedToolId) return;
+    setPendingToolFile(uploadedFile, detection.recommendedToolId, detection.slug);
+    navigate(detection.slug);
   };
 
   return (
@@ -168,10 +175,10 @@ export function QuickDropZone() {
                   {detection.recommendedToolId ? (
                     <Button
                       variant="primary"
-                      onClick={() => navigate(detection.slug)}
+                      onClick={openRecommendedTool}
                       className="cursor-pointer gap-2 font-bold"
                     >
-                      Open {detection.name === "PDF Document" ? "PDF to PNG" : "Analyzer"}
+                      Open recommended tool
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   ) : (

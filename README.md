@@ -20,6 +20,18 @@ Kurio Studio is currently in public testing. Core tools are usable, while some a
 * **Image to PDF Converter**
   Combine one or multiple images into a PDF document.
 
+* **PDF Merge**
+  Combine multiple PDF documents into one ordered file.
+
+* **PDF Resize**
+  Resize PDF pages to A4, Letter, Legal, or custom dimensions.
+
+* **PDF Compressor**
+  Reduce PDF file size while keeping the document readable.
+
+* **Document to Markdown**
+  Extract text-based PDF, DOCX, TXT, or Markdown files into clean Markdown.
+
 * **Image Compressor**
   Reduce image size while keeping usable visual quality.
 
@@ -37,7 +49,6 @@ Kurio Studio is currently in public testing. Core tools are usable, while some a
 
 ### Coming Soon
 
-* PDF Merge
 * Remove Background
 * Lottie to MP4
 * Advanced workspace history

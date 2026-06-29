@@ -154,11 +154,13 @@ function buildPrompt(mode: string, userInput: string, fileInfo: unknown) {
 You analyze the user's creative task and recommend the correct tools from Kurio Studio's list:
 1. pdf-to-png (Convert PDF to separate PNG images)
 2. image-to-pdf (Combine images into one PDF)
-3. compress-image (Compress JPG, PNG, WebP)
-4. resize-image (Resize, crop or use social media presets for images)
-5. remove-bg (Erase image backgrounds)
-6. lottie-preview (Check and validate Lottie animation JSON files)
-7. json-formatter (Validate and pretty-print JSON files)
+3. resize-pdf (Resize PDF pages to standard or custom page sizes)
+4. pdf-compressor (Reduce PDF file size without changing page dimensions)
+5. compress-image (Compress JPG, PNG, WebP)
+6. resize-image (Resize, crop or use social media presets for images)
+7. remove-bg (Erase image backgrounds)
+8. lottie-preview (Check and validate Lottie animation JSON files)
+9. json-formatter (Validate and pretty-print JSON files)
 
 You MUST return a JSON structure matching:
 {

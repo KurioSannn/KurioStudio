@@ -6,6 +6,7 @@ import { OutputPanel } from "@/src/components/tools/output-panel";
 import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
+import { takePendingToolFile } from "@/src/lib/workspace/pending-file";
 import { trackEvent } from "@/src/lib/analytics";
 import { Play, Pause, Trash2, Palette, Zap, CheckCircle2, RefreshCw, Download, AlertCircle } from "lucide-react";
 
@@ -218,6 +219,11 @@ export function LottiePreview() {
     };
     reader.readAsText(selectedFile);
   };
+
+  useEffect(() => {
+    const pending = takePendingToolFile("lottie-preview");
+    if (pending) handleFileSelected(pending.file);
+  }, []);
 
   const analyzeLottieJSON = (jsonString: string, sourceFile: File) => {
     try {

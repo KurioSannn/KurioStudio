@@ -5,6 +5,8 @@ export type AppRoute =
   | "/tools/pdf-to-jpg"
   | "/tools/image-to-pdf"
   | "/tools/pdf-merge"
+  | "/tools/resize-pdf"
+  | "/tools/pdf-compressor"
   | "/tools/doc-to-md"
   | "/tools/remove-bg"
   | "/tools/compress-image"
@@ -38,6 +40,7 @@ export interface WorkspaceItem {
   errorMessage?: string;
   createdAt: string;
   resultUrl?: string; // local blob URL or base64 data for download
+  pinned?: boolean;
 }
 
 export interface GeminiAPIRequest {

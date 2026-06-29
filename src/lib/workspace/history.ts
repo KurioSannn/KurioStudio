@@ -30,12 +30,24 @@ export function addToWorkspaceHistory(item: Omit<WorkspaceItem, "id" | "createdA
     ...item,
     id: Math.random().toString(36).substring(2, 11),
     createdAt: new Date().toISOString(),
+    pinned: item.pinned ?? false,
   };
   
   // Keep the most recent 50 executions to prevent localStorage bloat
   const updated = [newItem, ...history].slice(0, 50);
   saveWorkspaceHistory(updated);
   return newItem;
+}
+
+export function deleteWorkspaceHistoryItem(id: string) {
+  saveWorkspaceHistory(loadWorkspaceHistory().filter((item) => item.id !== id));
+}
+
+export function toggleWorkspaceHistoryPin(id: string) {
+  const updated = loadWorkspaceHistory().map((item) =>
+    item.id === id ? { ...item, pinned: !item.pinned } : item
+  );
+  saveWorkspaceHistory(updated);
 }
 
 export function clearWorkspaceHistory() {

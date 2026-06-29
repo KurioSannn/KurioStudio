@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import JSZip from "jszip";
 import { ToolPageShell } from "@/src/components/tools/tool-page-shell";
 import { UploadDropZone } from "@/src/components/tools/upload-drop-zone";
@@ -7,6 +7,7 @@ import { OutputPanel } from "@/src/components/tools/output-panel";
 import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
+import { takePendingToolFile } from "@/src/lib/workspace/pending-file";
 import { trackEvent } from "@/src/lib/analytics";
 import { formatBytes } from "@/src/lib/utils";
 import { AlertCircle, Check, Copy, Download, FileCheck, FileText, Info, Trash2 } from "lucide-react";
@@ -1947,6 +1948,11 @@ export function DocToMarkdown() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const pending = takePendingToolFile("doc-to-md");
+    if (pending) handleFileSelected(pending.file);
+  }, []);
 
   const clearWorkspace = () => {
     setFile(null);
