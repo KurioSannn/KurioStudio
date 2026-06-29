@@ -1,5 +1,6 @@
 import React from "react";
 import { TOOL_CATEGORIES } from "@/src/lib/constants/tools";
+import { useRoute } from "@/src/context/RouteContext";
 import { FileText, Image, Clapperboard, Film, Code2, Layers, ArrowUpRight } from "lucide-react";
 
 const ICON_MAP = {
@@ -12,10 +13,10 @@ const ICON_MAP = {
 };
 
 export function ToolCategoryGrid() {
+  const { navigate } = useRoute();
+
   const handleCategoryClick = (catKey: string) => {
-    // Navigate to tools list with preselected category filter
-    // Hash routing allows us to append URL search parameters easily
-    window.location.hash = `#\u002ftools?category=${catKey}`;
+    navigate(`/tools?category=${catKey}`);
   };
 
   return (

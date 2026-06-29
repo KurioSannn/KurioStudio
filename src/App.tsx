@@ -3,6 +3,7 @@ import { RouteProvider, useRoute } from "./context/RouteContext";
 import { AppShell } from "./components/layout/app-shell";
 import { AppRoute } from "./lib/types";
 import { trackEvent } from "./lib/analytics";
+import { updateRouteMeta } from "./lib/route-meta";
 
 // Homepage Sections
 import { HeroSection } from "./components/home/hero-section";
@@ -43,6 +44,7 @@ function MainAppRouter() {
   const { route } = useRoute();
 
   React.useEffect(() => {
+    updateRouteMeta(route);
     trackEvent("page_view", { route });
   }, [route]);
 

@@ -40,7 +40,7 @@ export function Navbar() {
         {/* Center Links */}
         <nav className="hidden md:flex items-center justify-center gap-8 lg:gap-10">
           {links.map((link) => {
-            const isActive = route === link.to || (link.to === "/tools" && route.startsWith("/tools/"));
+            const isActive = route === link.to || (link.to === "/tools" && route.startsWith("/tools"));
             return (
               <button
                 key={link.to}

@@ -22,7 +22,7 @@ export function trackEvent(event: AnalyticsEventName, payload: AnalyticsPayload 
   const body = {
     event,
     payload,
-    path: typeof window !== "undefined" ? window.location.hash || window.location.pathname : "",
+    path: typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "",
     timestamp: new Date().toISOString(),
   };
 

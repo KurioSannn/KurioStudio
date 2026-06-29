@@ -3,29 +3,23 @@ import { useRoute } from "@/src/context/RouteContext";
 import { TOOLS_LIST, TOOL_CATEGORIES } from "@/src/lib/constants/tools";
 import { ToolCard } from "@/src/components/tools/tool-card";
 import { Input } from "@/src/components/ui/input";
-import { Search, Grid, Sliders, Layers } from "lucide-react";
+import { Search, Layers } from "lucide-react";
 
 export function ToolsDirectory() {
+  const { route, navigate } = useRoute();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   // Dynamically analyze category filters injected from homepage query params
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      const match = hash.match(/\?category=([a-z]+)/);
-      if (match && match[1]) {
-        setSelectedCategory(match[1]);
-      } else if (hash.includes("/tools") && !hash.includes("?")) {
-        setSelectedCategory("all");
-      }
-    };
+    const category = new URLSearchParams(route.split("?")[1] || "").get("category");
+    setSelectedCategory(category || "all");
+  }, [route]);
 
-    window.addEventListener("hashchange", handleHashChange);
-    handleHashChange(); // Initial check
-
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
+  const selectCategory = (category: string) => {
+    setSelectedCategory(category);
+    navigate(category === "all" ? "/tools" : `/tools?category=${category}`);
+  };
 
   // Filter lists based on query & selected segment
   const filteredTools = TOOLS_LIST.filter((tool) => {
@@ -57,7 +51,7 @@ export function ToolsDirectory() {
         {/* Category Pill Filters list */}
         <div className="flex flex-wrap items-center gap-1.5 order-2 md:order-1">
           <button
-            onClick={() => setSelectedCategory("all")}
+            onClick={() => selectCategory("all")}
             className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 cursor-pointer ${
               selectedCategory === "all"
                 ? "bg-accent-secondary text-white shadow-xs"
@@ -69,7 +63,7 @@ export function ToolsDirectory() {
           {Object.entries(TOOL_CATEGORIES).map(([key, val]) => (
             <button
               key={key}
-              onClick={() => setSelectedCategory(key)}
+              onClick={() => selectCategory(key)}
               className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all duration-150 cursor-pointer ${
                 selectedCategory === key
                   ? "bg-accent-secondary text-white shadow-xs"
