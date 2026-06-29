@@ -51,9 +51,9 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a href="mailto:ferdychoruz08@gmail.com" className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258]">
+                <button onClick={() => navigate("/contact")} className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258] cursor-pointer">
                   Contact
-                </a>
+                </button>
               </li>
             </ul>
           </div>
@@ -64,6 +64,18 @@ export function Footer() {
             <p className="text-[10px] text-[#9A9187] leading-relaxed">
               Most file tools run directly in your browser. AI helper access is rate limited during public beta.
             </p>
+            <ul className="mt-4 text-xs space-y-2">
+              <li>
+                <button onClick={() => navigate("/privacy")} className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258] cursor-pointer">
+                  Privacy Policy
+                </button>
+              </li>
+              <li>
+                <button onClick={() => navigate("/terms")} className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258] cursor-pointer">
+                  Terms of Use
+                </button>
+              </li>
+            </ul>
           </div>
  
         </div>

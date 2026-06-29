@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from "react";
 import { RouteProvider, useRoute } from "./context/RouteContext";
 import { AppShell } from "./components/layout/app-shell";
 import { AppRoute } from "./lib/types";
+import { trackEvent } from "./lib/analytics";
 
 // Homepage Sections
 import { HeroSection } from "./components/home/hero-section";
@@ -25,6 +26,9 @@ const JSONFormatter = lazy(() => import("./pages/JSONFormatter"));
 const WorkspacePage = lazy(() => import("./pages/WorkspacePage"));
 const AIHelperPage = lazy(() => import("./pages/AIHelperPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const PrivacyPage = lazy(() => import("./pages/PrivacyPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
+const ContactPage = lazy(() => import("./pages/ContactPage"));
 const ComingSoon = lazy(() => import("./pages/ComingSoon"));
 
 function RouteLoading() {
@@ -37,6 +41,10 @@ function RouteLoading() {
 
 function MainAppRouter() {
   const { route } = useRoute();
+
+  React.useEffect(() => {
+    trackEvent("page_view", { route });
+  }, [route]);
 
   // Conditional rendering based on localized state hashes
   const renderRouteView = () => {
@@ -108,6 +116,15 @@ function MainAppRouter() {
       
       case "/settings":
         return <SettingsPage />;
+
+      case "/privacy":
+        return <PrivacyPage />;
+
+      case "/terms":
+        return <TermsPage />;
+
+      case "/contact":
+        return <ContactPage />;
       
       default:
         // Fail-safe router backstop

@@ -16,7 +16,10 @@ export type AppRoute =
   | "/tools/json-formatter"
   | "/workspace"
   | "/ai-helper"
-  | "/settings";
+  | "/settings"
+  | "/privacy"
+  | "/terms"
+  | "/contact";
 
 export interface ToolDefinition {
   id: string;

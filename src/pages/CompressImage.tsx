@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { ToolPageShell } from "@/src/components/tools/tool-page-shell";
 import { UploadDropZone } from "@/src/components/tools/upload-drop-zone";
 import { SettingsPanel } from "@/src/components/tools/settings-panel";
@@ -8,7 +8,31 @@ import { Button } from "@/src/components/ui/button";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
 import { takePendingToolFile } from "@/src/lib/workspace/pending-file";
 import { trackEvent } from "@/src/lib/analytics";
-import { Trash2, Image as ImageIcon, Sliders, CheckCircle, AlertCircle } from "lucide-react";
+import { formatBytes } from "@/src/lib/utils";
+import { Trash2, Image as ImageIcon, CheckCircle, AlertCircle, Files, Download } from "lucide-react";
+import JSZip from "jszip";
+
+interface CompressionResult {
+  blob: Blob;
+  url: string;
+  mime: string;
+  width: number;
+  height: number;
+  warningText: string | null;
+  successText: string | null;
+}
+
+interface BatchCompressionItem {
+  id: string;
+  fileName: string;
+  originalSize: number;
+  outputSize: number;
+  outputUrl: string;
+  outputBlob: Blob;
+  extension: string;
+  status: "completed" | "error";
+  errorMessage?: string;
+}
 
 export function CompressImage() {
   const [file, setFile] = useState<File | null>(null);
@@ -26,6 +50,12 @@ export function CompressImage() {
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const [warningText, setWarningText] = useState<string | null>(null);
   const [successText, setSuccessText] = useState<string | null>(null);
+  const [batchResults, setBatchResults] = useState<BatchCompressionItem[]>([]);
+  const batchResultsRef = useRef<BatchCompressionItem[]>([]);
+
+  useEffect(() => {
+    batchResultsRef.current = batchResults;
+  }, [batchResults]);
 
   // Clean up object URLs to avoid memory leaks
   useEffect(() => {
@@ -35,6 +65,108 @@ export function CompressImage() {
     };
   }, [originalFileUrl, compressedFileUrl]);
 
+  useEffect(() => {
+    return () => {
+      batchResultsRef.current.forEach((item) => {
+        if (item.outputUrl) URL.revokeObjectURL(item.outputUrl);
+      });
+    };
+  }, []);
+
+  const getExportMime = (sourceFile: File, activeFormat: string) => {
+    let exportMime = sourceFile.type;
+    if (activeFormat === "jpeg") exportMime = "image/jpeg";
+    if (activeFormat === "png") exportMime = "image/png";
+    if (activeFormat === "webp") exportMime = "image/webp";
+    if (activeFormat === "same" && sourceFile.type === "image/jpg") exportMime = "image/jpeg";
+    return exportMime || "image/png";
+  };
+
+  const getOutputExtension = (sourceFile: File, activeFormat: string) => {
+    if (activeFormat === "jpeg") return ".jpg";
+    if (activeFormat === "png") return ".png";
+    if (activeFormat === "webp") return ".webp";
+    if (sourceFile.type === "image/png") return ".png";
+    if (sourceFile.type === "image/webp") return ".webp";
+    if (sourceFile.type === "image/jpeg" || sourceFile.type === "image/jpg") return ".jpg";
+    return sourceFile.name.substring(sourceFile.name.lastIndexOf(".")) || ".png";
+  };
+
+  const compressImageFile = (
+    sourceFile: File,
+    activeQuality: number,
+    activeFormat: string,
+    activeScale: number
+  ): Promise<CompressionResult> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const sourceUrl = URL.createObjectURL(sourceFile);
+      img.src = sourceUrl;
+
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const scaleFactor = activeScale / 100;
+        const targetWidth = Math.max(1, Math.round(img.naturalWidth * scaleFactor));
+        const targetHeight = Math.max(1, Math.round(img.naturalHeight * scaleFactor));
+
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        if (ctx) {
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+        }
+
+        const exportMime = getExportMime(sourceFile, activeFormat);
+        const isPNG = exportMime === "image/png";
+        const qualityFactor = activeQuality / 100;
+
+        canvas.toBlob(
+          (blob) => {
+            URL.revokeObjectURL(sourceUrl);
+            if (!blob) {
+              reject(new Error("The browser could not create an optimized image blob."));
+              return;
+            }
+
+            const outputUrl = URL.createObjectURL(blob);
+            let nextWarning: string | null = null;
+            let nextSuccess: string | null = null;
+
+            if (blob.size >= sourceFile.size) {
+              nextWarning =
+                isPNG && activeScale === 100
+                  ? "PNG is lossless. Try lowering Resolution Scale, or convert to WebP/JPG for larger savings."
+                  : "The output is not smaller than the original. Try lower quality, lower scale, or WebP format.";
+            } else {
+              const saved = Math.round(((sourceFile.size - blob.size) / sourceFile.size) * 100);
+              nextSuccess = `Optimized image successfully. Estimated size reduction: ${saved}%.`;
+            }
+
+            resolve({
+              blob,
+              url: outputUrl,
+              mime: exportMime,
+              width: targetWidth,
+              height: targetHeight,
+              warningText: nextWarning,
+              successText: nextSuccess,
+            });
+          },
+          exportMime,
+          isPNG ? undefined : qualityFactor
+        );
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(sourceUrl);
+        reject(new Error("Failed to correctly decode graphic reference."));
+      };
+    });
+  };
+
   const handleFileSelected = (selectedFile: File) => {
     setFile(selectedFile);
     setLoading(true);
@@ -42,6 +174,7 @@ export function CompressImage() {
     setSuccessText(null);
     setDimensions(null);
     setResolutionScale(100); // Reset scale on new file select
+    setBatchResults([]);
     
     const objUrl = URL.createObjectURL(selectedFile);
     setOriginalFileUrl(objUrl);
@@ -65,103 +198,104 @@ export function CompressImage() {
     setLoading(true);
     setWarningText(null);
     setSuccessText(null);
-    
-    const img = new Image();
-    img.src = URL.createObjectURL(sourceFile);
-    
-    img.onload = () => {
-      setDimensions({ width: img.naturalWidth, height: img.naturalHeight });
-      
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      
-      const scaleFactor = activeScale / 100;
-      const targetWidth = Math.max(1, Math.round(img.naturalWidth * scaleFactor));
-      const targetHeight = Math.max(1, Math.round(img.naturalHeight * scaleFactor));
-      
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-      
-      if (ctx) {
-        ctx.fillStyle = "#ffffff"; // Clear canvas default alpha buffer
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+    compressImageFile(sourceFile, activeQuality, activeFormat, activeScale)
+      .then((result) => {
+        setDimensions({ width: result.width, height: result.height });
+        setCompressedFileUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return result.url;
+        });
+        setCompressedSize(result.blob.size);
+        setWarningText(result.warningText);
+        setSuccessText(result.successText);
+
+        addToWorkspaceHistory({
+          toolId: "compress-image",
+          toolName: "Image Compressor",
+          fileName: sourceFile.name,
+          fileSize: sourceFile.size,
+          outputType: result.mime.replace("image/", "").toUpperCase(),
+          status: "completed",
+        });
+        trackEvent("conversion_success", {
+          toolId: "compress-image",
+          fileType: sourceFile.type,
+          fileSize: sourceFile.size,
+          outputSize: result.blob.size,
+          outputFormat: result.mime,
+        });
+      })
+      .catch((error: Error) => {
+        setWarningText(error.message);
+        trackEvent("conversion_failed", { toolId: "compress-image", message: error.message });
+      })
+      .finally(() => setLoading(false));
+  };
+
+  const handleFilesSelected = async (selectedFiles: File[]) => {
+    if (selectedFiles.length === 0) return;
+    handleFileSelected(selectedFiles[0]);
+    if (selectedFiles.length === 1) return;
+
+    batchResults.forEach((item) => URL.revokeObjectURL(item.outputUrl));
+    setBatchResults([]);
+    setLoading(true);
+    trackEvent("batch_file_processed", {
+      toolId: "compress-image",
+      files: selectedFiles.length,
+      totalSize: selectedFiles.reduce((sum, current) => sum + current.size, 0),
+    });
+
+    const results: BatchCompressionItem[] = [];
+
+    for (const sourceFile of selectedFiles) {
+      try {
+        const result = await compressImageFile(sourceFile, quality, outputFormat, 100);
+        results.push({
+          id: `${sourceFile.name}-${sourceFile.size}-${Math.random().toString(36).slice(2)}`,
+          fileName: sourceFile.name,
+          originalSize: sourceFile.size,
+          outputSize: result.blob.size,
+          outputUrl: result.url,
+          outputBlob: result.blob,
+          extension: getOutputExtension(sourceFile, outputFormat),
+          status: "completed",
+        });
+      } catch (error: any) {
+        results.push({
+          id: `${sourceFile.name}-${sourceFile.size}-${Math.random().toString(36).slice(2)}`,
+          fileName: sourceFile.name,
+          originalSize: sourceFile.size,
+          outputSize: 0,
+          outputUrl: "",
+          outputBlob: new Blob(),
+          extension: getOutputExtension(sourceFile, outputFormat),
+          status: "error",
+          errorMessage: error.message || "Compression failed.",
+        });
       }
+      setBatchResults([...results]);
+    }
 
-      // Determine correct target export MIME type
-      let exportMime = sourceFile.type;
-      if (activeFormat === "jpeg") exportMime = "image/jpeg";
-      if (activeFormat === "png") exportMime = "image/png";
-      if (activeFormat === "webp") exportMime = "image/webp";
-      if (activeFormat === "same") {
-        // Fallback to same as source but standardise JPEG/JPG
-        if (sourceFile.type === "image/jpg") exportMime = "image/jpeg";
-      }
-
-      const qualityFactor = activeQuality / 100;
-      const isPNG = exportMime === "image/png";
-
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            const compUrl = URL.createObjectURL(blob);
-            setCompressedFileUrl((prev) => {
-              if (prev) URL.revokeObjectURL(prev);
-              return compUrl;
-            });
-            setCompressedSize(blob.size);
-            
-            // Check for realistic compression results & construct warnings honestly
-            if (blob.size >= sourceFile.size) {
-              if (isPNG && activeScale === 100) {
-                setWarningText(
-                  "PNG is lossless. Redrawing at 100% resolution stripped metadata, but kept size identical. Try lowering the 'Resolution Scale' slider, or converting to WebP/JPG format for massive size saves."
-                );
-              } else {
-                setWarningText(
-                  "The output file is not smaller than the original reference. Try lowering the quality slider, scaling down the resolution, or selecting WebP format."
-                );
-              }
-            } else {
-              const saved = Math.round(((sourceFile.size - blob.size) / sourceFile.size) * 100);
-              setSuccessText(`Optimized image successfully. Estimated size reduction: ${saved}%.`);
-            }
-
-            // Log to workspace history
-            addToWorkspaceHistory({
-              toolId: "compress-image",
-              toolName: "Image Compressor",
-              fileName: sourceFile.name,
-              fileSize: sourceFile.size,
-              outputType: exportMime.replace("image/", "").toUpperCase(),
-              status: "completed",
-            });
-            trackEvent("conversion_success", {
-              toolId: "compress-image",
-              fileType: sourceFile.type,
-              fileSize: sourceFile.size,
-              outputSize: blob.size,
-              outputFormat: exportMime,
-            });
-          } else {
-            setWarningText("The browser could not create an optimized image blob. Try a different output format.");
-            trackEvent("conversion_failed", { toolId: "compress-image", message: "Canvas toBlob returned null" });
-          }
-          setLoading(false);
-          // Revoke memory helper object URL
-          URL.revokeObjectURL(img.src);
-        },
-        exportMime,
-        isPNG ? undefined : qualityFactor // Only parse factor parameter to lossy JPG/WebP
-      );
-    };
-
-    img.onerror = () => {
-      setWarningText("Failed to correctly decode graphic reference.");
-      trackEvent("conversion_failed", { toolId: "compress-image", message: "Image decode failed" });
-      setLoading(false);
-      URL.revokeObjectURL(img.src);
-    };
+    const completed = results.filter((item) => item.status === "completed");
+    if (completed.length > 0) {
+      addToWorkspaceHistory({
+        toolId: "compress-image",
+        toolName: "Image Compressor",
+        fileName: `${completed.length} image batch`,
+        fileSize: selectedFiles.reduce((sum, current) => sum + current.size, 0),
+        outputType: "ZIP",
+        status: "completed",
+      });
+      trackEvent("conversion_success", {
+        toolId: "compress-image",
+        files: completed.length,
+        failed: results.length - completed.length,
+        mode: "batch",
+      });
+    }
+    setLoading(false);
   };
 
   const handleQualityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -209,6 +343,33 @@ export function CompressImage() {
     link.click();
   };
 
+  const downloadBatchZip = async () => {
+    const completed = batchResults.filter((item) => item.status === "completed");
+    if (completed.length === 0) return;
+
+    setLoading(true);
+    try {
+      const zip = new JSZip();
+      completed.forEach((item) => {
+        const baseName = item.fileName.replace(/\.[^.]+$/, "") || "image";
+        zip.file(`${baseName}_optimized${item.extension}`, item.outputBlob);
+      });
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const zipUrl = URL.createObjectURL(zipBlob);
+      const link = document.createElement("a");
+      link.href = zipUrl;
+      link.download = `kurio-image-compression-${completed.length}-files.zip`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(zipUrl), 3000);
+    } catch (error: any) {
+      setWarningText(error.message || "Failed to assemble batch ZIP.");
+      trackEvent("conversion_failed", { toolId: "compress-image", message: error.message || "Batch ZIP failed", mode: "batch" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const clearWorkspace = () => {
     if (originalFileUrl) URL.revokeObjectURL(originalFileUrl);
     if (compressedFileUrl) URL.revokeObjectURL(compressedFileUrl);
@@ -220,11 +381,16 @@ export function CompressImage() {
     setWarningText(null);
     setSuccessText(null);
     setResolutionScale(100);
+    batchResults.forEach((item) => URL.revokeObjectURL(item.outputUrl));
+    setBatchResults([]);
   };
 
   // Check if active output sequence is PNG
   const isLosslessPNG =
     outputFormat === "png" || (outputFormat === "same" && file?.type === "image/png");
+  const completedBatchResults = batchResults.filter((item) => item.status === "completed");
+  const batchOriginalSize = batchResults.reduce((total, item) => total + item.originalSize, 0);
+  const batchOutputSize = completedBatchResults.reduce((total, item) => total + item.outputSize, 0);
 
   return (
     <ToolPageShell toolId="compress-image">
@@ -236,8 +402,10 @@ export function CompressImage() {
             <UploadDropZone
               acceptedExtensions={[".png", ".jpg", ".jpeg", ".webp"]}
               onFileSelected={handleFileSelected}
+              onFilesSelected={handleFilesSelected}
+              multiple
               title="Upload an image to compress"
-              subtitle="Drag & drop PNG, JPG, or WebP here or browse local folders. Processed securely inside your browser."
+              subtitle="Drag & drop one or many PNG, JPG, or WebP files here. Compression runs inside your browser."
             />
           ) : (
             <SettingsPanel title="Tuning Parameters">
@@ -350,6 +518,35 @@ export function CompressImage() {
               </ul>
             </div>
           )}
+
+          {batchResults.length > 1 && (
+            <div className="rounded-xl border border-brand-border bg-brand-surface p-4 text-xs space-y-3.5">
+              <div className="flex items-center gap-2">
+                <Files className="h-4.5 w-4.5 text-accent-secondary" />
+                <span className="font-bold text-text-primary">Batch summary</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 rounded-lg border border-brand-border bg-brand-secondary p-3">
+                <div>
+                  <span className="block text-[9px] uppercase font-bold text-text-muted">Completed</span>
+                  <span className="mt-0.5 block font-mono font-bold text-text-primary">{completedBatchResults.length}/{batchResults.length}</span>
+                </div>
+                <div className="border-l border-brand-border pl-3">
+                  <span className="block text-[9px] uppercase font-bold text-text-muted">Output</span>
+                  <span className="mt-0.5 block font-mono font-bold text-text-primary">{formatBytes(batchOutputSize)}</span>
+                </div>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={downloadBatchZip}
+                disabled={loading || completedBatchResults.length === 0}
+                className="w-full gap-2 text-xs"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download batch ZIP
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Right pane display inspect results */}
@@ -423,6 +620,57 @@ export function CompressImage() {
                 </div>
 
               </div>
+
+              {batchResults.length > 1 && (
+                <div className="space-y-3 rounded-xl border border-brand-border bg-brand-secondary p-4">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h5 className="text-xs font-bold text-text-primary">Batch output queue</h5>
+                      <p className="text-[10px] text-text-secondary">
+                        {completedBatchResults.length} of {batchResults.length} files compressed. Total input {formatBytes(batchOriginalSize)}.
+                      </p>
+                    </div>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={downloadBatchZip}
+                      disabled={loading || completedBatchResults.length === 0}
+                      className="gap-2 text-xs"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download ZIP
+                    </Button>
+                  </div>
+
+                  <div className="max-h-[260px] space-y-2 overflow-y-auto pr-1">
+                    {batchResults.map((item) => (
+                      <div key={item.id} className="flex flex-col gap-3 rounded-lg border border-brand-border bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <ImageIcon className="h-4 w-4 shrink-0 text-accent-secondary" />
+                            <span className="truncate text-xs font-bold text-text-primary">{item.fileName}</span>
+                          </div>
+                          <p className="mt-1 text-[10px] text-text-secondary">
+                            {item.status === "completed"
+                              ? `${formatBytes(item.originalSize)} -> ${formatBytes(item.outputSize)}`
+                              : item.errorMessage}
+                          </p>
+                        </div>
+                        {item.status === "completed" && (
+                          <a
+                            href={item.outputUrl}
+                            download={`${item.fileName.replace(/\.[^.]+$/, "") || "image"}_optimized${item.extension}`}
+                            className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-3 text-xs font-semibold text-text-primary transition-colors hover:bg-brand-bg"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            Download
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </OutputPanel>
           ) : (
             <PreviewPanel title="Optimized output preview container" />

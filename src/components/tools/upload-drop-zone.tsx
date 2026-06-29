@@ -7,22 +7,26 @@ interface UploadDropZoneProps {
   acceptedExtensions: string[];
   maxSizeMB?: number;
   onFileSelected: (file: File) => void;
+  onFilesSelected?: (files: File[]) => void;
   title: string;
   subtitle: string;
+  multiple?: boolean;
 }
 
 export function UploadDropZone({
   acceptedExtensions,
   maxSizeMB = 50,
   onFileSelected,
+  onFilesSelected,
   title,
   subtitle,
+  multiple = false,
 }: UploadDropZoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const validateAndProcessFile = (file: File) => {
+  const validateFile = (file: File) => {
     setErrorMessage(null);
 
     // 1. Verify Extension
@@ -36,17 +40,33 @@ export function UploadDropZone({
 
     if (!isAccepted) {
       setErrorMessage(`Invalid file format. Supported types: ${acceptedExtensions.join(", ")}`);
-      return;
+      return false;
     }
 
     // 2. Verify Size
     const maxByteSize = maxSizeMB * 1024 * 1024;
     if (file.size > maxByteSize) {
       setErrorMessage(`File exceeds the ${maxSizeMB}MB maximum limit.`);
+      return false;
+    }
+
+    return true;
+  };
+
+  const validateAndProcessFiles = (files: FileList | File[]) => {
+    const selectedFiles = Array.from(files);
+    if (selectedFiles.length === 0) return;
+
+    if (!multiple) {
+      if (validateFile(selectedFiles[0])) onFileSelected(selectedFiles[0]);
       return;
     }
 
-    onFileSelected(file);
+    const validFiles = selectedFiles.filter(validateFile);
+    if (validFiles.length > 0) {
+      onFilesSelected?.(validFiles);
+      if (!onFilesSelected) onFileSelected(validFiles[0]);
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -64,14 +84,15 @@ export function UploadDropZone({
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      validateAndProcessFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      validateAndProcessFiles(e.dataTransfer.files);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      validateAndProcessFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      validateAndProcessFiles(e.target.files);
+      e.currentTarget.value = "";
     }
   };
 
@@ -100,6 +121,7 @@ export function UploadDropZone({
           type="file"
           className="hidden"
           accept={acceptedExtensions.join(",")}
+          multiple={multiple}
           onChange={handleFileChange}
         />
 
