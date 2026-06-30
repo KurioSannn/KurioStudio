@@ -2,6 +2,7 @@ import React, { useState, useRef } from "react";
 import { Button } from "../ui/button";
 import { FolderUp, HelpCircle, FileCheck2, AlertCircle } from "lucide-react";
 import { formatBytes } from "@/src/lib/utils";
+import { motion } from "motion/react";
 
 interface UploadDropZoneProps {
   acceptedExtensions: string[];
@@ -116,7 +117,10 @@ export function UploadDropZone({
 
   return (
     <div className="space-y-3">
-      <div
+      <motion.div
+        whileHover={{ scale: 1.015 }}
+        whileTap={{ scale: 0.985 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
         onDragEnter={handleDrag}
         onDragOver={handleDrag}
         onDragLeave={handleDrag}
@@ -126,7 +130,7 @@ export function UploadDropZone({
         role="button"
         tabIndex={0}
         aria-label={`${title}. ${subtitle}`}
-        className={`group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 text-center cursor-pointer transition-all duration-300 ${
+        className={`group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 text-center cursor-pointer transition-colors duration-300 ${
           dragActive
             ? "border-accent-primary bg-accent-bg/10"
             : errorMessage
@@ -157,7 +161,7 @@ export function UploadDropZone({
         <Button variant="secondary" size="sm" type="button" className="pointer-events-none text-xs h-9">
           Choose file
         </Button>
-      </div>
+      </motion.div>
 
       {/* Validation Warning Callout */}
       {errorMessage && (

@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui
 import { FileUp, FileText, Image, Code2, AlertTriangle, ArrowRight, CheckCircle, Sparkles } from "lucide-react";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
 import { setPendingToolFile } from "@/src/lib/workspace/pending-file";
+import { motion } from "motion/react";
 
 export function QuickDropZone() {
   const { navigate } = useRoute();
@@ -107,7 +108,10 @@ export function QuickDropZone() {
         <CardContent className="p-8">
           
           {status === "idle" && (
-            <div
+            <motion.div
+              whileHover={{ scale: 1.015 }}
+              whileTap={{ scale: 0.985 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
               onDragEnter={handleDrag}
               onDragOver={handleDrag}
               onDragLeave={handleDrag}
@@ -117,8 +121,8 @@ export function QuickDropZone() {
               role="button"
               tabIndex={0}
               aria-label="Drop or browse a file for Kurio to recommend matching tools"
-              className={`group relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#D8D1C7] bg-[#FAFAF7] p-8 md:p-12 text-center cursor-pointer transition-all duration-300 hover:border-[#F59E0B] hover:bg-white ${
-                dragActive ? "bg-[#FFF3D6] border-[#F59E0B] scale-[1.01]" : ""
+              className={`group relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#D8D1C7] bg-[#FAFAF7] p-8 md:p-12 text-center cursor-pointer transition-colors duration-300 hover:border-[#F59E0B] hover:bg-white ${
+                dragActive ? "bg-[#FFF3D6] border-[#F59E0B]" : ""
               }`}
               id="file-drop-zone"
             >
@@ -142,11 +146,11 @@ export function QuickDropZone() {
               
               <button 
                 type="button" 
-                className="mt-2 px-6 py-2.5 bg-white border border-[#E7E2D8] rounded-xl text-[#171717] font-medium hover:bg-[#F3F0EA] transition-all shadow-sm text-sm"
+                className="mt-2 px-6 py-2.5 bg-white border border-[#E7E2D8] rounded-xl text-[#171717] font-medium hover:bg-[#F3F0EA] transition-colors shadow-sm text-sm"
               >
                 Browse Files
               </button>
-            </div>
+            </motion.div>
           )}
 
           {status === "analyzing" && uploadedFile && (

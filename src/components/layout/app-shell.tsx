@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Navbar } from "./navbar";
 import { Footer } from "./footer";
+import { CommandMenu } from "./command-menu";
+import { Toaster } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { Badge } from "../ui/badge";
 import { X } from "lucide-react";
@@ -62,6 +64,20 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Global Footer */}
       <Footer />
+      
+      <CommandMenu />
+      <Toaster 
+        position="bottom-right" 
+        toastOptions={{
+          style: {
+            background: 'var(--color-brand-surface)',
+            color: 'var(--color-text-primary)',
+            border: '1px solid var(--color-brand-border)',
+            borderRadius: '12px',
+          },
+          className: 'font-sans text-sm shadow-xl shadow-amber-500/10',
+        }} 
+      />
     </div>
   );
 }

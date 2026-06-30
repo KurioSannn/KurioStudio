@@ -1,4 +1,5 @@
 import { WorkspaceItem } from "../types";
+import { toast } from "sonner";
 
 const HISTORY_KEY = "kurio_studio_history_v1";
 
@@ -41,15 +42,21 @@ export function addToWorkspaceHistory(item: Omit<WorkspaceItem, "id" | "createdA
 
 export function deleteWorkspaceHistoryItem(id: string) {
   saveWorkspaceHistory(loadWorkspaceHistory().filter((item) => item.id !== id));
+  toast.success("Item removed from workspace");
 }
 
 export function toggleWorkspaceHistoryPin(id: string) {
-  const updated = loadWorkspaceHistory().map((item) =>
-    item.id === id ? { ...item, pinned: !item.pinned } : item
-  );
+  const updated = loadWorkspaceHistory().map((item) => {
+    if (item.id === id) {
+      toast.success(item.pinned ? "Unpinned from workspace" : "Pinned to workspace");
+      return { ...item, pinned: !item.pinned };
+    }
+    return item;
+  });
   saveWorkspaceHistory(updated);
 }
 
 export function clearWorkspaceHistory() {
   saveWorkspaceHistory([]);
+  toast.success("Workspace history cleared");
 }

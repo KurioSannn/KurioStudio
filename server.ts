@@ -369,10 +369,26 @@ async function initializeServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-  const appUrl = process.env.APP_URL || `http://localhost:${PORT}`;
-  console.log(`Kurio Server running on ${appUrl}`);
-});
+  const startServer = (port: number) => {
+    const server = app.listen(port, "0.0.0.0", () => {
+      const appUrl = process.env.APP_URL || `http://localhost:${port}`;
+      console.log(`Kurio Server running on ${appUrl}`);
+    });
+
+    server.on('error', (e: any) => {
+      if (e.code === 'EADDRINUSE') {
+        console.warn(`[KURIO-SERVER] Port ${port} is already in use. Trying port ${port + 1}...`);
+        setTimeout(() => {
+          server.close();
+          startServer(port + 1);
+        }, 100);
+      } else {
+        console.error("Express server error:", e);
+      }
+    });
+  };
+
+  startServer(PORT);
 }
 
 initializeServer().catch((err) => {
