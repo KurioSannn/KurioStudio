@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Command } from "cmdk";
 import { useRoute } from "@/src/context/RouteContext";
+import { useLanguage } from "@/src/context/LanguageContext";
 import { TOOLS_LIST } from "@/src/lib/constants/tools";
 import { Search, Folder, Zap, HelpCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -8,6 +9,7 @@ import { motion, AnimatePresence } from "motion/react";
 export function CommandMenu() {
   const [open, setOpen] = useState(false);
   const { navigate } = useRoute();
+  const { t } = useLanguage();
 
   // Toggle the menu when ⌘K is pressed
   useEffect(() => {
@@ -58,7 +60,7 @@ export function CommandMenu() {
               <Search className="h-5 w-5 text-text-muted shrink-0" />
               <Command.Input 
                 autoFocus 
-                placeholder="Search tools, workspace, or features..." 
+                placeholder={t.cmdPlaceholder} 
                 className="w-full bg-transparent px-3 text-[15px] font-medium text-text-primary placeholder:text-text-muted focus:outline-none"
               />
               <div className="flex items-center gap-1 shrink-0 rounded-md bg-brand-bg px-2 py-1 text-[10px] font-semibold text-text-secondary border border-brand-soft-border">
@@ -68,22 +70,22 @@ export function CommandMenu() {
 
             <Command.List className="max-h-[340px] overflow-y-auto p-2 overscroll-contain">
               <Command.Empty className="py-10 text-center text-sm font-medium text-text-secondary">
-                No tools or features found.
+                {t.cmdEmpty}
               </Command.Empty>
 
-              <Command.Group heading="Navigation">
+              <Command.Group heading={t.cmdNavigation}>
                 <Command.Item onSelect={() => runCommand(() => navigate("/"))}>
-                  <Zap className="mr-2 h-4 w-4" /> Home Dashboard
+                  <Zap className="mr-2 h-4 w-4" /> {t.cmdHome}
                 </Command.Item>
                 <Command.Item onSelect={() => runCommand(() => navigate("/workspace"))}>
-                  <Folder className="mr-2 h-4 w-4" /> My Workspace History
+                  <Folder className="mr-2 h-4 w-4" /> {t.cmdWorkspace}
                 </Command.Item>
                 <Command.Item onSelect={() => runCommand(() => navigate("/ai-helper"))}>
-                  <Search className="mr-2 h-4 w-4" /> AI Creative Helper
+                  <Search className="mr-2 h-4 w-4" /> {t.cmdAIHelper}
                 </Command.Item>
               </Command.Group>
 
-              <Command.Group heading="Local Tools">
+              <Command.Group heading={t.cmdLocalTools}>
                 {TOOLS_LIST.map((tool) => (
                   <Command.Item
                     key={tool.id}
@@ -102,7 +104,7 @@ export function CommandMenu() {
                       </div>
                       {tool.status === "coming-soon" && (
                         <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest text-text-muted bg-brand-bg px-2 py-0.5 rounded-full border border-brand-soft-border">
-                          Soon
+                          {t.comingSoon}
                         </span>
                       )}
                     </div>
@@ -110,9 +112,9 @@ export function CommandMenu() {
                 ))}
               </Command.Group>
 
-              <Command.Group heading="Support">
+              <Command.Group heading={t.cmdSupport}>
                 <Command.Item onSelect={() => runCommand(() => window.open("https://github.com/KurioSannn/KurioStudio/issues/new", "_blank"))}>
-                  <HelpCircle className="mr-2 h-4 w-4" /> Send Beta Feedback
+                  <HelpCircle className="mr-2 h-4 w-4" /> {t.cmdFeedback}
                 </Command.Item>
               </Command.Group>
 

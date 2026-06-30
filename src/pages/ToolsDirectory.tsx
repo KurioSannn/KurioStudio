@@ -4,6 +4,7 @@ import { TOOLS_LIST, TOOL_CATEGORIES } from "@/src/lib/constants/tools";
 import { ToolCard } from "@/src/components/tools/tool-card";
 import { Input } from "@/src/components/ui/input";
 import { Search, Layers } from "lucide-react";
+import { useLanguage } from "@/src/context/LanguageContext";
 
 const TOOL_SEARCH_ALIASES: Record<string, string[]> = {
   "pdf-to-png": ["extract page", "split pdf", "pdf image", "pdf ke png", "convert pdf"],
@@ -22,6 +23,7 @@ const TOOL_SEARCH_ALIASES: Record<string, string[]> = {
 
 export function ToolsDirectory() {
   const { route, navigate } = useRoute();
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
@@ -69,10 +71,10 @@ export function ToolsDirectory() {
       {/* Title & Stats */}
       <div className="text-center md:text-left space-y-2">
         <h1 className="font-sans text-3xl font-extrabold tracking-tight text-text-primary md:text-4xl">
-          Asset Creator Workbench
+          {t.toolsDirTitle}
         </h1>
         <p className="text-sm text-text-secondary max-w-xl">
-          Search by task, format, or workflow and open the right browser-based tool in seconds.
+          {t.toolsDirSubtitle}
         </p>
       </div>
 
@@ -89,7 +91,7 @@ export function ToolsDirectory() {
                 : "bg-brand-surface border border-brand-border text-text-secondary hover:bg-brand-bg hover:text-text-primary"
             }`}
           >
-            All Utilities
+            {t.toolsDirAll}
           </button>
           {Object.entries(TOOL_CATEGORIES).map(([key, val]) => (
             <button
@@ -110,7 +112,7 @@ export function ToolsDirectory() {
         <div className="relative w-full md:w-80 order-1 md:order-2 shrink-0">
           <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-text-muted" />
           <Input
-            placeholder="Search by task or format..."
+            placeholder={t.toolsDirSearch}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
@@ -132,9 +134,9 @@ export function ToolsDirectory() {
             <Layers className="h-5.5 w-5.5" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-text-primary">No tools matched your search</h4>
+            <h4 className="text-sm font-bold text-text-primary">{t.toolsDirEmpty}</h4>
             <p className="text-xs text-text-secondary mt-1">
-              Try another format, category, or task name.
+              {t.toolsDirEmptyHint}
             </p>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from "react";
 import { RouteProvider, useRoute } from "./context/RouteContext";
+import { LanguageProvider } from "./context/LanguageContext";
 import { AppShell } from "./components/layout/app-shell";
 import { ErrorBoundary } from "./components/layout/error-boundary";
 import { AppRoute } from "./lib/types";
@@ -146,9 +147,11 @@ function MainAppRouter() {
 
 export function App() {
   return (
-    <RouteProvider>
-      <MainAppRouter />
-    </RouteProvider>
+    <LanguageProvider>
+      <RouteProvider>
+        <MainAppRouter />
+      </RouteProvider>
+    </LanguageProvider>
   );
 }
 

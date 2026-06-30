@@ -8,9 +8,11 @@ import { FileUp, FileText, Image, Code2, AlertTriangle, ArrowRight, CheckCircle,
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
 import { setPendingToolFile } from "@/src/lib/workspace/pending-file";
 import { motion } from "motion/react";
+import { useLanguage } from "@/src/context/LanguageContext";
 
 export function QuickDropZone() {
   const { navigate } = useRoute();
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   
@@ -138,9 +140,9 @@ export function QuickDropZone() {
               </div>
 
               <div>
-                <p className="text-xl font-bold text-[#171717] mb-1">Drop any file here</p>
+                <p className="text-xl font-bold text-[#171717] mb-1">{t.quickDropDrag}</p>
                 <p className="text-sm text-[#9A9187] max-w-md leading-relaxed mb-4">
-                  Kurio will detect the file type and recommend the right tool from your local suite.
+                  {t.quickDropDragSub}
                 </p>
               </div>
               
@@ -148,7 +150,7 @@ export function QuickDropZone() {
                 type="button" 
                 className="mt-2 px-6 py-2.5 bg-white border border-[#E7E2D8] rounded-xl text-[#171717] font-medium hover:bg-[#F3F0EA] transition-colors shadow-sm text-sm"
               >
-                Browse Files
+                {t.quickDropBrowse}
               </button>
             </motion.div>
           )}
@@ -156,9 +158,9 @@ export function QuickDropZone() {
           {status === "analyzing" && uploadedFile && (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <div className="mb-4 h-10 w-10 animate-spin rounded-full border-2 border-brand-border border-t-accent-secondary" />
-              <h4 className="text-sm font-bold text-text-primary">Analyzing file structure</h4>
+              <h4 className="text-sm font-bold text-text-primary">{t.quickDropAnalyzing}</h4>
               <p className="mt-1 max-w-sm text-xs leading-relaxed text-text-secondary">
-                Kurio is checking {uploadedFile.name} and matching it to the most relevant local tool.
+                {t.quickDropAnalyzingDesc}
               </p>
             </div>
           )}
@@ -187,7 +189,7 @@ export function QuickDropZone() {
 
                 <div className="flex items-center gap-1.5 shrink-0 bg-brand-soft/60 px-2.5 py-1 rounded-md text-[11px] font-semibold text-text-primary">
                   <CheckCircle className="h-3.5 w-3.5 text-accent-secondary" />
-                  Recognized
+                  {t.quickDropRecognized}
                 </div>
               </div>
 
@@ -196,10 +198,10 @@ export function QuickDropZone() {
                 <div>
                   <h5 className="flex items-center gap-1.5 text-xs font-semibold text-accent-secondary uppercase tracking-wider">
                     <Sparkles className="h-3.5 w-3.5" />
-                    Recommended Actions
+                    {t.quickDropRecommendedActions}
                   </h5>
                   <p className="text-sm text-text-primary font-bold mt-1">
-                    Pick the exact workflow for this {detection.extension.toUpperCase().replace(".", "") || "file"}.
+                    {t.quickDropPickWorkflow}
                   </p>
                 </div>
 
@@ -232,7 +234,7 @@ export function QuickDropZone() {
                     onClick={() => navigate("/tools")}
                     className="cursor-pointer gap-2 font-bold"
                   >
-                    Browse full directory
+                    {t.quickDropBrowseDir}
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 )}
@@ -240,11 +242,11 @@ export function QuickDropZone() {
                 <div className="flex items-center gap-3">
                   {detection.recommendedToolId ? (
                     <Button variant="secondary" onClick={resetDropZone}>
-                      Analyze another file
+                      {t.quickDropAnalyzeAnother}
                     </Button>
                   ) : (
                     <Button variant="secondary" onClick={resetDropZone}>
-                      Try another file
+                      {t.quickDropTryAnother}
                     </Button>
                   )}
                 </div>
@@ -259,13 +261,13 @@ export function QuickDropZone() {
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div>
-                <h4 className="text-base font-bold text-text-primary">File is too large</h4>
+                <h4 className="text-base font-bold text-text-primary">{t.quickDropErrorSize}</h4>
                 <p className="text-sm text-text-secondary mt-1">
-                  The uploaded item exceeds our current max file size parameter (50 MB). Please pick a smaller file.
+                  {t.quickDropErrorSizeDesc}
                 </p>
               </div>
               <Button variant="secondary" onClick={resetDropZone}>
-                Try again
+                {t.quickDropTryAgain}
               </Button>
             </div>
           )}

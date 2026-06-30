@@ -7,7 +7,9 @@ import {
 } from "@/src/lib/workspace/history";
 import { WorkspaceItem } from "@/src/lib/types";
 import { formatBytes } from "@/src/lib/utils";
+import { TOOLS_LIST } from "@/src/lib/constants/tools";
 import { useRoute } from "@/src/context/RouteContext";
+import { useLanguage } from "@/src/context/LanguageContext";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import {
@@ -30,6 +32,7 @@ type HistoryStatusFilter = "all" | WorkspaceItem["status"];
 
 export function WorkspacePage() {
   const { navigate } = useRoute();
+  const { t } = useLanguage();
   const [history, setHistory] = useState<WorkspaceItem[]>([]);
   const [confirmWipe, setConfirmWipe] = useState(false);
   const [search, setSearch] = useState("");
@@ -71,17 +74,8 @@ export function WorkspacePage() {
   };
 
   const getToolRoute = (toolId: string) => {
-    if (toolId === "pdf-to-png") return "/tools/pdf-to-png";
-    if (toolId === "image-to-pdf") return "/tools/image-to-pdf";
-    if (toolId === "pdf-merge") return "/tools/pdf-merge";
-    if (toolId === "resize-pdf") return "/tools/resize-pdf";
-    if (toolId === "pdf-compressor") return "/tools/pdf-compressor";
-    if (toolId === "doc-to-md") return "/tools/doc-to-md";
-    if (toolId === "compress-image") return "/tools/compress-image";
-    if (toolId === "resize-image") return "/tools/resize-image";
-    if (toolId === "lottie-preview") return "/tools/lottie-preview";
-    if (toolId === "json-formatter") return "/tools/json-formatter";
-    return "/tools";
+    const tool = TOOLS_LIST.find((t) => t.id === toolId);
+    return tool ? tool.slug : "/tools";
   };
 
   const filteredHistory = useMemo(() => {
@@ -112,22 +106,22 @@ export function WorkspacePage() {
 
   const statusDetails: Record<WorkspaceItem["status"], { label: string; className: string; Icon: LucideIcon }> = {
     idle: {
-      label: "Ready",
+      label: t.workspaceReady,
       className: "bg-amber-50 text-amber-700 border-amber-200",
       Icon: Clock3,
     },
     processing: {
-      label: "Processing",
+      label: t.workspaceProcessing,
       className: "bg-blue-50 text-blue-700 border-blue-200",
       Icon: Clock3,
     },
     completed: {
-      label: "Completed",
+      label: t.workspaceCompleted,
       className: "bg-green-50 text-green-700 border-green-200",
       Icon: CheckCircle2,
     },
     error: {
-      label: "Error",
+      label: t.workspaceError,
       className: "bg-red-50 text-red-700 border-red-200",
       Icon: AlertCircle,
     },
@@ -141,10 +135,10 @@ export function WorkspacePage() {
         <div className="space-y-1">
           <h1 className="font-sans text-2xl font-extrabold tracking-tight text-text-primary md:text-3.5xl flex items-center gap-2">
             <History className="h-6 w-6 text-accent-secondary" />
-            Workspace History
+            {t.workspaceTitle}
           </h1>
           <p className="text-xs text-text-secondary">
-            Review recent file activity stored in this browser. Files are not uploaded from this page.
+            {t.workspaceSubtitle}
           </p>
         </div>
 
@@ -157,7 +151,7 @@ export function WorkspacePage() {
               className="gap-2 text-xs"
             >
               <Download className="h-4 w-4" />
-              Export JSON
+              {t.workspaceExport}
             </Button>
             <Button
               variant="ghost"
@@ -166,7 +160,7 @@ export function WorkspacePage() {
               className="text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200"
             >
               <Trash2 className="h-4 w-4" />
-              Clear History
+              {t.workspaceClearAll}
             </Button>
           </div>
         )}
@@ -175,15 +169,15 @@ export function WorkspacePage() {
       {history.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="rounded-xl border border-brand-border bg-brand-surface p-4">
-            <span className="text-[9px] uppercase font-bold tracking-wider text-text-muted">Records</span>
+            <span className="text-[9px] uppercase font-bold tracking-wider text-text-muted">{t.workspaceRecords}</span>
             <span className="mt-1 block font-mono text-lg font-bold text-text-primary">{history.length}</span>
           </div>
           <div className="rounded-xl border border-brand-border bg-brand-surface p-4">
-            <span className="text-[9px] uppercase font-bold tracking-wider text-text-muted">Completed</span>
+            <span className="text-[9px] uppercase font-bold tracking-wider text-text-muted">{t.workspaceCompleted}</span>
             <span className="mt-1 block font-mono text-lg font-bold text-text-primary">{completedCount}</span>
           </div>
           <div className="rounded-xl border border-brand-border bg-brand-surface p-4">
-            <span className="text-[9px] uppercase font-bold tracking-wider text-text-muted">Pinned</span>
+            <span className="text-[9px] uppercase font-bold tracking-wider text-text-muted">{t.workspacePinned}</span>
             <span className="mt-1 block font-mono text-lg font-bold text-text-primary">{pinnedCount}</span>
           </div>
         </div>
@@ -194,13 +188,13 @@ export function WorkspacePage() {
         <div className="space-y-4">
           {confirmWipe && (
             <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <span className="font-semibold">Clear all local workspace history? This only removes records stored in this browser.</span>
+              <span className="font-semibold">{t.workspaceClearConfirm}</span>
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm" onClick={() => setConfirmWipe(false)} className="border border-red-200 bg-white text-xs">
-                  Cancel
+                  {t.workspaceCancel}
                 </Button>
                 <Button variant="danger" size="sm" onClick={handleWipeHistory} className="text-xs">
-                  Clear history
+                  {t.workspaceYesWipe}
                 </Button>
               </div>
             </div>
@@ -209,9 +203,9 @@ export function WorkspacePage() {
           <div className="rounded-xl border border-accent-bg bg-accent-bg/35 p-4 text-xs text-accent-secondary flex items-start gap-2.5">
             <Database className="h-4.5 w-4.5 shrink-0" />
             <div>
-              <span className="font-bold block">Local browser history</span>
+              <span className="font-bold block">{t.workspaceLocalTitle}</span>
               <p className="mt-0.5 leading-normal text-[11px] text-text-secondary">
-                This list is saved in localStorage for quick access. Clearing it does not delete files from your device.
+                {t.workspaceLocalDesc}
               </p>
             </div>
           </div>
@@ -222,7 +216,7 @@ export function WorkspacePage() {
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search file, tool, or output..."
+                placeholder={t.workspaceSearch}
                 className="pl-9"
               />
             </div>
@@ -238,7 +232,7 @@ export function WorkspacePage() {
                       : "border border-brand-border bg-brand-surface text-text-secondary hover:bg-brand-bg"
                   }`}
                 >
-                  {status === "all" ? "All" : statusDetails[status].label}
+                  {status === "all" ? t.workspaceAll : statusDetails[status].label}
                 </button>
               ))}
             </div>
@@ -315,7 +309,7 @@ export function WorkspacePage() {
                     onClick={() => navigate(getToolRoute(record.toolId))}
                     className="flex items-center gap-1 text-xs py-4.5"
                   >
-                    Open again
+                    {t.workspaceOpenTool}
                     <ExternalLink className="h-3 w-3" />
                   </Button>
                   <Button
@@ -334,8 +328,8 @@ export function WorkspacePage() {
 
           {filteredHistory.length === 0 && (
             <div className="rounded-2xl border border-brand-border border-dashed bg-brand-secondary/40 py-12 text-center">
-              <h4 className="text-sm font-bold text-text-primary">No matching history items</h4>
-              <p className="mt-1 text-xs text-text-secondary">Try another keyword or status filter.</p>
+              <h4 className="text-sm font-bold text-text-primary">{t.workspaceNoMatch}</h4>
+              <p className="mt-1 text-xs text-text-secondary">{t.workspaceNoMatchHint}</p>
             </div>
           )}
 
@@ -346,13 +340,13 @@ export function WorkspacePage() {
             <History className="h-5.5 w-5.5" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-text-primary">Workspace history is empty</h4>
+            <h4 className="text-sm font-bold text-text-primary">{t.workspaceEmpty}</h4>
             <p className="text-xs text-text-secondary mt-1">
-              Process a file with any tool or drop a file on the home page to start a local history.
+              {t.workspaceEmptyHint}
             </p>
           </div>
           <Button variant="primary" onClick={() => navigate("/tools")} className="mt-2 text-xs">
-            Show all tools
+            {t.workspaceShowAllTools}
           </Button>
         </div>
       )}

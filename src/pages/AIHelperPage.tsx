@@ -1,330 +1,606 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/src/components/ui/button";
-import { Textarea } from "@/src/components/ui/textarea";
 import { Input } from "@/src/components/ui/input";
-import { Card, CardContent } from "@/src/components/ui/card";
-import { Sparkles, Router, FileSignature, Edit3, Send, RefreshCw, Layers, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  Sparkles,
+  Send,
+  RefreshCw,
+  Trash2,
+  Wand2,
+  Tag,
+  MessageSquare,
+  ArrowRight,
+  Bot,
+  User,
+  Copy,
+  Check,
+} from "lucide-react";
+import { toast } from "sonner";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type AssistantMode = "router" | "naming" | "captions";
 
 interface ChatMessage {
   id: string;
-  sender: "user" | "gemini";
+  sender: "user" | "ai";
   text: string;
   timestamp: Date;
-  meta?: any;
 }
 
+// ─── i18n — Auto-detect browser language ──────────────────────────────────────
+
+type Lang = "en" | "id";
+
+function detectLang(): Lang {
+  const lang = (navigator.language || "en").toLowerCase();
+  return lang.startsWith("id") ? "id" : "en";
+}
+
+// ─── Translations ─────────────────────────────────────────────────────────────
+
+const T = {
+  en: {
+    title: "AI Helper",
+    subtitle: "Your AI assistant for tool recommendations, file naming, and caption writing.",
+    betaLabel: "Beta",
+    onlineStatus: "Kurio AI",
+    clearChat: "Clear chat",
+    examplesHeading: "Example Prompts",
+    typeSomething: "Type your prompt below or pick an example from the left to get started.",
+    aiLabel: "Kurio AI",
+    footerNote: "AI Helper is powered by Gemini · Rate-limited during beta · Files are never sent to the server",
+    copiedToast: "Copied to clipboard",
+    clearToast: "Chat cleared",
+    errorNetwork: "Could not reach the AI Helper. Check your internet and try again.",
+    errorGeneric: "Kurio AI couldn't complete that request. Try a shorter prompt.",
+  },
+  id: {
+    title: "AI Helper",
+    subtitle: "Asisten AI untuk rekomendasi tool, penamaan file, dan penulisan caption.",
+    betaLabel: "Beta",
+    onlineStatus: "Kurio AI",
+    clearChat: "Hapus chat",
+    examplesHeading: "Contoh Pertanyaan",
+    typeSomething: "Ketik pertanyaanmu di bawah atau pilih contoh di sebelah kiri untuk mulai.",
+    aiLabel: "Kurio AI",
+    footerNote: "AI Helper menggunakan Gemini · Dibatasi penggunaan selama beta · File tidak dikirim ke server",
+    copiedToast: "Disalin ke clipboard",
+    clearToast: "Chat dihapus",
+    errorNetwork: "Koneksi ke AI Helper gagal. Periksa koneksi internetmu dan coba lagi.",
+    errorGeneric: "Kurio AI tidak bisa menjawab saat ini. Coba dengan pertanyaan yang lebih singkat.",
+  },
+};
+
+// ─── Mode definitions (bilingual) ─────────────────────────────────────────────
+
+const MODES_CONTENT: Record<Lang, {
+  id: AssistantMode;
+  label: string;
+  tagline: string;
+  description: string;
+  placeholder: string;
+  examples: string[];
+}[]> = {
+  en: [
+    {
+      id: "router",
+      label: "Recommend a Tool",
+      tagline: "Describe your task — AI picks the right Kurio tool for you.",
+      description:
+        "Have a file or creative task but not sure where to start? Describe what you need and the AI will recommend the most suitable Kurio tools along with a step-by-step workflow.",
+      placeholder: "e.g. I have a bunch of high-res JPEGs I need to compress for a website...",
+      examples: [
+        "I want to merge multiple PDF files into one",
+        "I have high-resolution photos but the file size is too large",
+        "Need to convert a PDF to images for a presentation",
+      ],
+    },
+    {
+      id: "naming",
+      label: "Name My File",
+      tagline: "Describe your asset — AI generates a clean, professional filename.",
+      description:
+        "Not sure what to call your file? Describe the content or purpose and the AI will generate structured, concise, and professional filenames — perfect for teams or portfolios.",
+      placeholder: "e.g. Company logo in blue for the dark-mode version of our website...",
+      examples: [
+        "Product photo of sneakers for a summer online catalog",
+        "App icon in PNG format with a transparent background",
+        "Holiday promotion banner for Instagram Story",
+      ],
+    },
+    {
+      id: "captions",
+      label: "Write a Caption",
+      tagline: "Share your concept — AI crafts an engaging caption, ready to post.",
+      description:
+        "Got a design or content piece but stuck on the words? Describe the concept and the AI will write engaging captions for social media, ads, or product descriptions.",
+      placeholder: "e.g. A flat-lay photo of healthy food in green and white tones for a lifestyle brand...",
+      examples: [
+        "Coffee shop photo with warm tones for an Instagram post",
+        "Mobile app mockup for a product launch on Twitter",
+        "Indie music event poster for a WhatsApp Story",
+      ],
+    },
+  ],
+  id: [
+    {
+      id: "router",
+      label: "Rekomendasikan Tool",
+      tagline: "Ceritakan kebutuhanmu, AI kasih tahu tool yang tepat.",
+      description:
+        "Punya file atau task kreatif tapi bingung mulai dari mana? Ceritakan ke AI, dan dia akan merekomendasikan tool Kurio yang paling cocok beserta urutan langkahnya.",
+      placeholder: "Contoh: Saya punya banyak foto JPG kualitas tinggi yang mau dicompres untuk website...",
+      examples: [
+        "Saya mau gabungkan beberapa PDF jadi satu file",
+        "Saya punya foto resolusi tinggi tapi filenya terlalu besar",
+        "Perlu konversi PDF ke gambar untuk presentasi",
+      ],
+    },
+    {
+      id: "naming",
+      label: "Buat Nama File",
+      tagline: "Biarkan AI bikinkan nama file yang rapi dan konsisten.",
+      description:
+        "Bingung kasih nama file? Describe isi atau tujuan file-mu, AI akan buatkan nama yang terstruktur, singkat, dan profesional — cocok untuk tim atau portofolio.",
+      placeholder: "Contoh: Logo perusahaan dalam warna biru untuk kebutuhan website versi gelap...",
+      examples: [
+        "Foto produk sepatu untuk katalog online musim panas",
+        "Icon aplikasi dalam format PNG dengan latar transparan",
+        "Banner promosi hari raya untuk Instagram Story",
+      ],
+    },
+    {
+      id: "captions",
+      label: "Tulis Caption",
+      tagline: "Bagikan konsepmu, AI tulis caption yang siap posting.",
+      description:
+        "Punya desain atau konten tapi tidak tahu harus nulis apa? Ceritakan konsepnya, AI akan buatkan caption yang engaging untuk media sosial, iklan, atau deskripsi produk.",
+      placeholder: "Contoh: Foto flat-lay makanan sehat dengan warna hijau dan putih untuk konten lifestyle...",
+      examples: [
+        "Foto kopi di cafe dengan nuansa warm untuk Instagram",
+        "Mockup aplikasi mobile untuk promosi di Twitter",
+        "Poster event musik indie untuk story WhatsApp",
+      ],
+    },
+  ],
+};
+
+const MODE_META: { id: AssistantMode; icon: React.FC<any>; color: string; bg: string }[] = [
+  { id: "router",   icon: Wand2,          color: "#7C3AED", bg: "#F5F3FF" },
+  { id: "naming",   icon: Tag,            color: "#0EA5E9", bg: "#F0F9FF" },
+  { id: "captions", icon: MessageSquare,  color: "#D97706", bg: "#FFFBEB" },
+];
+
+// ─── Copy button ──────────────────────────────────────────────────────────────
+
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success(label);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      onClick={copy}
+      className="ml-auto shrink-0 p-1 rounded-md text-text-muted hover:text-text-secondary hover:bg-brand-bg transition-colors"
+      title="Copy"
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+    </button>
+  );
+}
+
+// ─── Typing indicator ─────────────────────────────────────────────────────────
+
+function TypingIndicator() {
+  return (
+    <div className="flex justify-start">
+      <div className="flex items-center gap-2 bg-brand-secondary border border-brand-border rounded-xl px-4 py-3">
+        <Bot className="h-3.5 w-3.5 text-accent-secondary shrink-0" />
+        <div className="flex gap-1">
+          {[0, 0.15, 0.3].map((delay, i) => (
+            <motion.div
+              key={i}
+              className="h-1.5 w-1.5 rounded-full bg-accent-secondary"
+              animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
+              transition={{ duration: 0.8, repeat: Infinity, delay }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export function AIHelperPage() {
+  const [lang] = useState<Lang>(() => detectLang());
+  const t = T[lang];
+  const modes = MODES_CONTENT[lang];
+
   const [activeMode, setActiveMode] = useState<AssistantMode>("router");
   const [inputText, setInputText] = useState("");
   const [loading, setLoading] = useState(false);
   const [chatLog, setChatLog] = useState<ChatMessage[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Extra helper inputs based on active segments
-  const [prefixName, setPrefixName] = useState("logo");
-  const [captionTone, setCaptionTone] = useState("minimal");
+  const currentModeMeta = MODE_META.find((m) => m.id === activeMode)!;
+  const currentMode = modes.find((m) => m.id === activeMode)!;
 
-  const executeAssistantCall = async (e?: React.FormEvent) => {
+  // Auto-scroll to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatLog, loading]);
+
+  const switchMode = (mode: AssistantMode) => {
+    setActiveMode(mode);
+    setInputText("");
+    setChatLog([]);
+  };
+
+  const sendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!inputText.trim() || loading) return;
+    const text = inputText.trim();
+    if (!text || loading) return;
 
-    const userText = inputText;
     setInputText("");
     setLoading(true);
 
-    // Push local message
-    const newMessage: ChatMessage = {
-      id: Math.random().toString(),
+    const userMsg: ChatMessage = {
+      id: crypto.randomUUID(),
       sender: "user",
-      text: userText,
+      text,
       timestamp: new Date(),
     };
-    setChatLog((prev) => [...prev, newMessage]);
+    setChatLog((prev) => [...prev, userMsg]);
 
     try {
       let gModeStr = "tool-router";
-      let payloadPrompt = userText;
+      let payloadPrompt = text;
 
       if (activeMode === "naming") {
         gModeStr = "filename-helper";
-        payloadPrompt = `Prefix tag: ${prefixName}. Asset context: ${userText}`;
+        payloadPrompt = lang === "id"
+          ? `Buatkan nama file profesional untuk: ${text}`
+          : `Generate a professional filename for: ${text}`;
       } else if (activeMode === "captions") {
         gModeStr = "caption-helper";
-        payloadPrompt = `Tone specification: ${captionTone}. Concept to elaborate: ${userText}`;
+        payloadPrompt = lang === "id"
+          ? `Buatkan caption media sosial yang engaging untuk: ${text}`
+          : `Write an engaging social media caption for: ${text}`;
       }
 
       const response = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: gModeStr,
-          userInput: payloadPrompt,
-        }),
+        body: JSON.stringify({ mode: gModeStr, userInput: payloadPrompt, stream: true }),
       });
 
-      const data = await response.json();
-      
-      const botResponseText = data.success 
-        ? data.result 
-        : data.message || "Kurio could not complete that request. Please try again with a shorter prompt.";
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.message || t.errorGeneric);
+      }
 
+      if (!response.body) throw new Error("No response body");
+
+      const aiMsgId = crypto.randomUUID();
       setChatLog((prev) => [
         ...prev,
-        {
-          id: Math.random().toString(),
-          sender: "gemini",
-          text: botResponseText,
-          timestamp: new Date(),
-          meta: data,
-        },
+        { id: aiMsgId, sender: "ai", text: "", timestamp: new Date() },
       ]);
-    } catch (err) {
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let done = false;
+      let fullText = "";
+
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        if (value) {
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data.trim() === "[DONE]") {
+                done = true;
+                break;
+              }
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.success) {
+                  fullText += parsed.text;
+                  setChatLog((prev) =>
+                    prev.map((msg) =>
+                      msg.id === aiMsgId ? { ...msg, text: fullText } : msg
+                    )
+                  );
+                } else if (parsed.message && fullText === "") {
+                  setChatLog((prev) =>
+                    prev.map((msg) =>
+                      msg.id === aiMsgId ? { ...msg, text: parsed.message } : msg
+                    )
+                  );
+                }
+              } catch (e) {
+                // ignore parsing error for partial chunks
+              }
+            }
+          }
+        }
+        if (readerDone) done = true;
+      }
+    } catch (error: any) {
       setChatLog((prev) => [
         ...prev,
-        {
-          id: Math.random().toString(),
-          sender: "gemini",
-          text: "Kurio could not reach the AI helper. Check the server environment and try again.",
-          timestamp: new Date(),
-        },
+        { id: crypto.randomUUID(), sender: "ai", text: error.message || t.errorNetwork, timestamp: new Date() },
       ]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePresetPrompt = (text: string) => {
-    setInputText(text);
-  };
-
-  const clearDialogue = () => {
+  const clearChat = () => {
     setChatLog([]);
+    toast.success(t.clearToast);
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10 space-y-8">
-      
-      {/* Title */}
-      <div className="flex items-center justify-between gap-4 pb-4 border-b border-brand-border">
-        <div className="space-y-1">
-          <h1 className="font-sans text-2xl font-extrabold tracking-tight text-text-primary md:text-3.5xl flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-accent-secondary" />
-            AI Creative Workspace Helper
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 md:py-12 space-y-6">
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#FFF3D6] text-[#F59E0B]">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <h1 className="font-sans text-2xl font-extrabold tracking-tight text-text-primary">
+            {t.title}
           </h1>
-          <p className="text-xs text-text-secondary">
-            Use Gemini models to structure filenames, write asset copy, or dynamically chart creator workflow recommendations.
-          </p>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#F59E0B] bg-[#FFF3D6] px-2 py-0.5 rounded-full border border-[#F59E0B]/20">
+            {t.betaLabel}
+          </span>
         </div>
+        <p className="text-sm text-text-secondary max-w-lg pl-10">{t.subtitle}</p>
       </div>
 
-      {/* Segment controls */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 select-none">
-        {[
-          { id: "router", label: "Workflow Router Advisor", icon: Router, desc: "Map complex project tasks to tools" },
-          { id: "naming", label: "Smart File Namer", icon: FileSignature, desc: "Standardize multi-format asset lists" },
-          { id: "captions", label: "Ad Captions Writer", icon: Edit3, desc: "Author captions for designs" },
-        ].map((mode) => {
-          const ModeIcon = mode.icon;
+      {/* ── Mode selector ───────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {modes.map((mode) => {
+          const meta = MODE_META.find((m) => m.id === mode.id)!;
+          const Icon = meta.icon;
+          const isActive = activeMode === mode.id;
           return (
-            <button
+            <motion.button
               key={mode.id}
-              onClick={() => {
-                setActiveMode(mode.id as AssistantMode);
-                setInputText("");
-              }}
-              style={{ contentVisibility: "auto" }}
-              className={`flex flex-col items-start p-4 border rounded-xl text-left transition-all cursor-pointer shadow-xs ${
-                activeMode === mode.id
-                  ? "bg-brand-surface border-accent-secondary text-text-primary ring-2 ring-accent-primary/20"
-                  : "bg-brand-surface border-brand-border text-text-secondary hover:bg-[#FAFAF7]"
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 400, damping: 20 }}
+              onClick={() => switchMode(mode.id)}
+              className={`relative flex flex-col items-start gap-2 p-4 rounded-xl border text-left transition-colors cursor-pointer ${
+                isActive
+                  ? "bg-brand-surface shadow-md"
+                  : "border-brand-border bg-brand-surface hover:bg-brand-bg"
               }`}
+              style={isActive ? { boxShadow: `0 0 0 2px ${meta.color}50` } : {}}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-bg text-accent-secondary mb-3">
-                <ModeIcon className="h-4.5 w-4.5" />
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-lg"
+                style={{ background: meta.bg }}
+              >
+                <Icon className="h-4 w-4" style={{ color: meta.color }} />
               </div>
-              <span className="text-xs font-bold text-text-primary block">{mode.label}</span>
-              <span className="text-[10px] text-text-secondary mt-0.5 block leading-normal">{mode.desc}</span>
-            </button>
+              <div>
+                <span className="text-sm font-bold text-text-primary block">{mode.label}</span>
+                <span className="text-[11px] text-text-secondary leading-snug block mt-0.5">
+                  {mode.tagline}
+                </span>
+              </div>
+              {isActive && (
+                <motion.div
+                  layoutId="mode-dot"
+                  className="absolute top-3 right-3 h-2 w-2 rounded-full"
+                  style={{ background: meta.color }}
+                />
+              )}
+            </motion.button>
           );
         })}
       </div>
 
-      {/* Workspace panel split */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        {/* Helper configurations depending on segment modes */}
-        <div className="lg:col-span-4 space-y-5">
-          {activeMode === "naming" && (
-            <div className="rounded-xl border border-brand-border bg-brand-surface p-5 space-y-4 shadow-xs">
-              <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider block">Namer Properties</span>
-              <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-semibold text-text-secondary">File prefix</label>
-                <Input
-                  placeholder="e.g. kurio_v1"
-                  value={prefixName}
-                  onChange={(e) => setPrefixName(e.target.value)}
-                />
+      {/* ── Main panel ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+        {/* Sidebar */}
+        <div className="lg:col-span-4 space-y-4">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeMode + "-desc"}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="rounded-xl border border-brand-border bg-brand-surface p-5 space-y-3 shadow-xs"
+            >
+              <div className="flex items-center gap-2">
+                {React.createElement(currentModeMeta.icon, {
+                  className: "h-4 w-4",
+                  style: { color: currentModeMeta.color },
+                })}
+                <span className="text-xs font-bold text-text-primary">{currentMode.label}</span>
               </div>
-              <span className="text-[9px] text-text-muted mt-1 block leading-normal">
-                Generates clean names for related assets such as logos, backgrounds, and title graphics.
+              <p className="text-xs text-text-secondary leading-relaxed">
+                {currentMode.description}
+              </p>
+            </motion.div>
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeMode + "-examples"}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, delay: 0.05 }}
+              className="rounded-xl border border-brand-border bg-brand-surface p-5 space-y-3 shadow-xs"
+            >
+              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                {t.examplesHeading}
               </span>
-            </div>
-          )}
-
-          {activeMode === "captions" && (
-            <div className="rounded-xl border border-brand-border bg-brand-surface p-5 space-y-4 shadow-xs">
-              <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider block">Copywriter Settings</span>
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase font-semibold text-text-secondary">Caption tone voice</label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {["minimal", "expert", "bento", "academic"].map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setCaptionTone(t)}
-                      className={`py-1.5 text-xs font-bold rounded-lg capitalize transition-all border ${
-                        captionTone === t
-                          ? "bg-[#FFF3D6] border-accent-secondary text-accent-secondary"
-                          : "bg-brand-surface border-brand-border text-text-secondary hover:bg-brand-bg"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex flex-col gap-2">
+                {currentMode.examples.map((ex, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setInputText(ex)}
+                    className="group flex items-start gap-2 text-left text-xs bg-brand-bg hover:bg-brand-soft border border-brand-border p-2.5 rounded-lg text-text-secondary leading-relaxed transition-colors"
+                  >
+                    <ArrowRight className="h-3 w-3 shrink-0 mt-0.5 text-text-muted group-hover:text-accent-secondary transition-colors" />
+                    <span className="line-clamp-2">{ex}</span>
+                  </button>
+                ))}
               </div>
-            </div>
-          )}
-
-          {/* Quick presets helper */}
-          <div className="rounded-xl border border-brand-border bg-brand-surface p-5 space-y-3.5 shadow-xs">
-            <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider block">Quick templates</span>
-            
-            <div className="flex flex-col gap-2">
-              {activeMode === "router" && (
-                <>
-                  <button
-                    onClick={() => handlePresetPrompt("I want to convert vectors into slides and clean bad structures")}
-                    className="text-left text-xs bg-[#FAFAF7] hover:bg-brand-soft border border-brand-hard-border/30 p-2.5 rounded-lg text-text-secondary leading-normal truncate"
-                  >
-                    &ldquo;Convert vectors to transparent slides...&rdquo;
-                  </button>
-                  <button
-                    onClick={() => handlePresetPrompt("Compress some JPEG pictures for a mobile layout app")}
-                    className="text-left text-xs bg-[#FAFAF7] hover:bg-brand-soft border border-brand-hard-border/30 p-2.5 rounded-lg text-text-secondary leading-normal truncate"
-                  >
-                    &ldquo;Compress static mobile JPEGs...&rdquo;
-                  </button>
-                </>
-              )}
-              {activeMode === "naming" && (
-                <>
-                  <button
-                    onClick={() => handlePresetPrompt("Brand asset logo for our marketing slide deck")}
-                    className="text-left text-xs bg-[#FAFAF7] hover:bg-brand-soft border border-brand-hard-border/30 p-2.5 rounded-lg text-text-secondary leading-normal truncate"
-                  >
-                    &ldquo;Slide deck logos...&rdquo;
-                  </button>
-                  <button
-                    onClick={() => handlePresetPrompt("Background texture element and landscape graphic")}
-                    className="text-left text-xs bg-[#FAFAF7] hover:bg-brand-soft border border-brand-hard-border/30 p-2.5 rounded-lg text-text-secondary leading-normal truncate"
-                  >
-                    &ldquo;Background textures...&rdquo;
-                  </button>
-                </>
-              )}
-              {activeMode === "captions" && (
-                <>
-                  <button
-                    onClick={() => handlePresetPrompt("Minimalist web-app conversion tool focusing on creator speed")}
-                    className="text-left text-xs bg-[#FAFAF7] hover:bg-brand-soft border border-brand-hard-border/30 p-2.5 rounded-lg text-text-secondary leading-normal truncate"
-                  >
-                    &ldquo;Creator fast workspace tool...&rdquo;
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
 
-        {/* Right column Chat feed interface */}
-        <div className="lg:col-span-8 flex flex-col justify-between border border-brand-border bg-brand-surface rounded-2xl min-h-[500px] shadow-xs overflow-hidden">
-          
-          {/* Messages track */}
-          <div className="p-6 space-y-4 flex-1 max-h-[400px] overflow-y-auto">
-            {chatLog.length > 0 ? (
-              chatLog.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"} animate-fade-in`}
-                >
-                  <div className={`max-w-[80%] rounded-xl px-4 py-3 text-xs leading-relaxed ${
-                    msg.sender === "user"
-                      ? "bg-accent-secondary text-white font-semibold"
-                      : "bg-brand-secondary border border-brand-border text-text-primary"
-                  }`}>
-                    {msg.sender === "gemini" && (
-                      <span className="block text-[8px] font-bold text-accent-secondary tracking-widest uppercase mb-1 font-mono">
-                        Advisor
-                      </span>
-                    )}
-                    <p className="whitespace-pre-line">{msg.text}</p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center text-text-muted space-y-2">
-                <Sparkles className="h-7 w-7 text-[#D8D1C7] animate-pulse" />
-                <h4 className="text-sm font-bold text-text-primary">Chat history is empty</h4>
-                <p className="text-xs text-text-secondary max-w-xs">
-                  Type a prompt below or use a template to get AI guidance.
-                </p>
-              </div>
+        {/* Chat panel */}
+        <div className="lg:col-span-8 flex flex-col border border-brand-border bg-brand-surface rounded-2xl shadow-xs overflow-hidden min-h-[480px]">
+
+          {/* Chat header */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-brand-border bg-brand-secondary/40">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-xs font-semibold text-text-secondary">
+                {t.onlineStatus} · {currentMode.label}
+              </span>
+            </div>
+            {chatLog.length > 0 && (
+              <button
+                onClick={clearChat}
+                className="flex items-center gap-1.5 text-[11px] font-medium text-text-muted hover:text-red-500 transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {t.clearChat}
+              </button>
             )}
           </div>
 
-          {/* Form write input */}
-          <form onSubmit={executeAssistantCall} className="border-t border-brand-border p-4 bg-brand-secondary/60 flex gap-2.5 items-center select-none">
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 max-h-[380px]">
+            {chatLog.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center justify-center h-full py-16 text-center space-y-3"
+              >
+                <div
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl"
+                  style={{ background: currentModeMeta.bg }}
+                >
+                  {React.createElement(currentModeMeta.icon, {
+                    className: "h-7 w-7",
+                    style: { color: currentModeMeta.color },
+                  })}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-text-primary">{currentMode.tagline}</p>
+                  <p className="text-xs text-text-secondary mt-1 max-w-xs mx-auto">
+                    {t.typeSomething}
+                  </p>
+                </div>
+              </motion.div>
+            ) : (
+              <>
+                <AnimatePresence initial={false}>
+                  {chatLog.map((msg) => (
+                    <motion.div
+                      key={msg.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className={`flex gap-2.5 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      {msg.sender === "ai" && (
+                        <div className="h-7 w-7 shrink-0 rounded-full bg-[#FFF3D6] flex items-center justify-center mt-0.5">
+                          <Bot className="h-3.5 w-3.5 text-[#F59E0B]" />
+                        </div>
+                      )}
+                      <div
+                        className={`group max-w-[78%] rounded-2xl px-4 py-3 text-xs leading-relaxed ${
+                          msg.sender === "user"
+                            ? "bg-[#F59E0B] text-[#171717] font-semibold rounded-tr-sm"
+                            : "bg-brand-secondary border border-brand-border text-text-primary rounded-tl-sm"
+                        }`}
+                      >
+                        {msg.sender === "ai" && (
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[9px] font-bold text-accent-secondary tracking-widest uppercase">
+                              {t.aiLabel}
+                            </span>
+                            <CopyButton text={msg.text} label={t.copiedToast} />
+                          </div>
+                        )}
+                        <p className="whitespace-pre-line">{msg.text}</p>
+                      </div>
+                      {msg.sender === "user" && (
+                        <div className="h-7 w-7 shrink-0 rounded-full bg-brand-soft border border-brand-border flex items-center justify-center mt-0.5">
+                          <User className="h-3.5 w-3.5 text-text-secondary" />
+                        </div>
+                      )}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                {loading && <TypingIndicator />}
+              </>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <form
+            onSubmit={sendMessage}
+            className="border-t border-brand-border p-4 bg-brand-secondary/40 flex gap-2 items-center"
+          >
             <Input
-              placeholder={activeMode === "router" ? "What do you want to accomplish?" : "Describe the asset or campaign..."}
+              placeholder={currentMode.placeholder}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               disabled={loading}
-              className="bg-white"
+              className="bg-white text-xs"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
             />
-            
             <Button
               variant="primary"
               size="icon"
               type="submit"
               disabled={loading || !inputText.trim()}
-              className="shrink-0 h-10 w-10 text-white flex items-center justify-center rounded-xl cursor-pointer"
+              className="shrink-0 h-10 w-10 rounded-xl cursor-pointer"
             >
-              {loading ? (
-                <RefreshCw className="h-4 w-4 animate-spin text-text-primary" />
-              ) : (
-                <Send className="h-4 w-4 text-text-primary" />
-              )}
+              {loading
+                ? <RefreshCw className="h-4 w-4 animate-spin text-text-primary" />
+                : <Send className="h-4 w-4 text-text-primary" />
+              }
             </Button>
-            
-            {chatLog.length > 0 && (
-              <Button
-                variant="secondary"
-                size="icon"
-                onClick={clearDialogue}
-                type="button"
-                className="shrink-0 h-10 w-10 text-text-secondary border border-brand-border cursor-pointer bg-white"
-                title="Clear chat history"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
           </form>
 
+          <p className="text-center text-[10px] text-text-muted px-4 pb-3">
+            {t.footerNote}
+          </p>
         </div>
-
       </div>
     </div>
   );
 }
+
 export default AIHelperPage;

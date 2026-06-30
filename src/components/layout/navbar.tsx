@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useRoute } from "@/src/context/RouteContext";
+import { useLanguage } from "@/src/context/LanguageContext";
 import { AppRoute } from "@/src/lib/types";
 import { trackEvent } from "@/src/lib/analytics";
 import { toast } from "sonner";
@@ -7,11 +8,12 @@ import { Menu, X } from "lucide-react";
 
 export function Navbar() {
   const { route, navigate } = useRoute();
+  const { t } = useLanguage();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  // Listen for the PWA install prompt event
+
   useEffect(() => {
     const handler = (e: any) => {
-      e.preventDefault(); // Prevent the default mini-infobar
+      e.preventDefault();
       setDeferredPrompt(e);
     };
     window.addEventListener("beforeinstallprompt", handler);
@@ -22,9 +24,9 @@ export function Navbar() {
   const feedbackUrl = "https://github.com/KurioSannn/KurioStudio/issues/new";
 
   const links: { label: string; to: AppRoute }[] = [
-    { label: "Tools", to: "/tools" },
-    { label: "Workspace", to: "/workspace" },
-    { label: "AI Helper", to: "/ai-helper" },
+    { label: t.navTools, to: "/tools" },
+    { label: t.navWorkspace, to: "/workspace" },
+    { label: t.navAIHelper, to: "/ai-helper" },
   ];
 
   useEffect(() => {
@@ -34,12 +36,11 @@ export function Navbar() {
   const goToRoute = (to: AppRoute) => {
     setIsMenuOpen(false);
     navigate(to);
-    // If we have a deferred install prompt, show a toast to let user install the PWA
     if (deferredPrompt) {
-      toast("Install Kurio Studio?", {
-        description: "Add to home screen for offline access.",
+      toast(t.pwaInstallTitle, {
+        description: t.pwaInstallDesc,
         action: {
-          label: "Install",
+          label: t.pwaInstallBtn,
           onClick: () => {
             deferredPrompt.prompt();
             deferredPrompt.userChoice.then((choiceResult: any) => {
@@ -56,7 +57,6 @@ export function Navbar() {
       });
     }
   };
-
 
   return (
     <header className="sticky top-0 z-55 w-full border-b border-[#E7E2D8] bg-white">
@@ -96,7 +96,7 @@ export function Navbar() {
             onClick={() => trackEvent("feedback_opened", { source: "navbar" })}
             className="border-b-2 border-transparent py-1 text-sm font-medium text-[#6B6258] transition-colors duration-150 hover:text-[#171717]"
           >
-            Feedback
+            {t.feedback}
           </a>
         </nav>
 
@@ -106,12 +106,12 @@ export function Navbar() {
             onClick={() => goToRoute("/tools")}
             className="hidden px-4 py-2 text-sm font-semibold text-black transition-all bg-[#F59E0B] rounded-xl cursor-pointer hover:shadow-md whitespace-nowrap sm:inline-flex md:px-5"
           >
-            Start converting
+            {t.startConverting}
           </button>
           <button
             type="button"
             onClick={() => setIsMenuOpen((current) => !current)}
-            aria-label={isMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-label={isMenuOpen ? t.navCloseMenu : t.navOpenMenu}
             aria-expanded={isMenuOpen}
             className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#E7E2D8] text-[#171717] transition-colors hover:bg-[#FFF8E6] md:hidden"
           >
@@ -149,13 +149,13 @@ export function Navbar() {
               }}
               className="flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-[#6B6258] transition-colors hover:bg-[#F8F5EF] hover:text-[#171717]"
             >
-              Feedback
+              {t.feedback}
             </a>
             <button
               onClick={() => goToRoute("/tools")}
               className="mt-2 flex min-h-11 items-center justify-center rounded-lg bg-[#F59E0B] px-4 text-sm font-bold text-black transition-all hover:shadow-md"
             >
-              Start converting
+              {t.startConverting}
             </button>
           </nav>
         </div>

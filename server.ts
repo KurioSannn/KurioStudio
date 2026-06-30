@@ -135,7 +135,7 @@ if (GEMINI_API_KEY && GEMINI_API_KEY !== "MY_GEMINI_API_KEY") {
 
 // 1. Creative Gemini assistant endpoints
 app.post("/api/gemini", async (req: Request, res: Response): Promise<void> => {
-  const { mode, userInput, fileInfo, context } = req.body;
+  const { mode, userInput, fileInfo, context, stream } = req.body;
   
   if (!userInput) {
     res.status(400).json({ success: false, message: "userInput property is required" });
@@ -216,6 +216,26 @@ app.post("/api/gemini", async (req: Request, res: Response): Promise<void> => {
       mockResult = `Processed request under mode: ${mode}. Set GEMINI_API_KEY to enable live AI responses.`;
     }
 
+    if (stream) {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      const words = mockResult.split(" ");
+      let i = 0;
+      const interval = setInterval(() => {
+        if (i < words.length) {
+          res.write(`data: ${JSON.stringify({ success: true, text: words[i] + " " })}\n\n`);
+          i++;
+        } else {
+          res.write("data: [DONE]\n\n");
+          res.end();
+          clearInterval(interval);
+        }
+      }, 50);
+      return;
+    }
+
     res.json({
       success: true,
       result: mockResult,
@@ -229,9 +249,11 @@ app.post("/api/gemini", async (req: Request, res: Response): Promise<void> => {
   try {
     let systemInstruction = "";
     let promptText = "";
+    let useJson = mode === "tool-router" && !stream;
     
     if (mode === "tool-router") {
-      systemInstruction = `You are Kurio Studio's Intelligent Tool Router. 
+      if (useJson) {
+        systemInstruction = `You are Kurio Studio's Intelligent Tool Router. 
 You analyze the user's creative task and recommend the correct tools from Kurio Studio's list:
 1. pdf-to-png (Convert PDF to separate PNG images)
 2. image-to-pdf (Combine images into one PDF)
@@ -251,6 +273,23 @@ You MUST return a JSON structure matching:
   "recommendedTools": ["tool-id-1", "tool-id-2"],
   "workflowSteps": ["Step 1 explanation", "Step 2 explanation"]
 }`;
+      } else {
+        systemInstruction = `You are Kurio Studio's Intelligent Tool Router. 
+You analyze the user's creative task and recommend the correct tools from Kurio Studio's list:
+1. pdf-to-png (Convert PDF to separate PNG images)
+2. image-to-pdf (Combine images into one PDF)
+3. pdf-merge (Combine multiple PDFs into one ordered PDF)
+4. resize-pdf (Resize PDF pages to standard or custom page sizes)
+5. pdf-compressor (Reduce PDF file size without changing page dimensions)
+6. compress-image (Compress JPG, PNG, WebP)
+7. resize-image (Resize, crop or use social media presets for images)
+8. remove-bg (Erase image backgrounds)
+9. lottie-preview (Check and validate Lottie animation JSON files)
+10. json-formatter (Validate and pretty-print JSON files)
+11. doc-to-md (Convert text-based PDF, DOCX, TXT, or Markdown into Markdown without AI)
+
+Give a helpful, conversational explanation suggesting which tool to use. Return plain text only.`;
+      }
       promptText = `User says: "${userInput}"`;
     } else if (mode === "caption-helper" || mode === "captions-helper") {
       systemInstruction = `You are Kurio Studio's Creator Caption and Copy Helper.
@@ -281,19 +320,50 @@ Return only valid JSON. Do not include markdown, commentary, explanations, or co
       promptText = userInput;
     }
 
+    if (stream) {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      try {
+        const responseStream = await ai.models.generateContentStream({
+          model: GEMINI_MODEL,
+          contents: promptText,
+          config: {
+            systemInstruction,
+            temperature: 0.2,
+            responseMimeType: "text/plain"
+          }
+        });
+
+        for await (const chunk of responseStream) {
+          if (chunk.text) {
+            res.write(`data: ${JSON.stringify({ success: true, text: chunk.text })}\n\n`);
+          }
+        }
+        res.write("data: [DONE]\n\n");
+      } catch (streamErr: any) {
+        console.error("Stream generation error:", streamErr);
+        res.write(`data: ${JSON.stringify({ success: false, message: "Stream generation failed." })}\n\n`);
+        res.write("data: [DONE]\n\n");
+      }
+      res.end();
+      return;
+    }
+
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
       contents: promptText,
       config: {
         systemInstruction,
         temperature: 0.2,
-        responseMimeType: mode === "tool-router" ? "application/json" : "text/plain"
+        responseMimeType: useJson ? "application/json" : "text/plain"
       }
     });
 
     const textOutput = response.text || "";
     
-    if (mode === "tool-router") {
+    if (useJson) {
       try {
         const jsonResult = JSON.parse(textOutput);
         res.json({

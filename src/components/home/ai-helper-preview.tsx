@@ -1,21 +1,24 @@
 import React, { useState } from "react";
 import { useRoute } from "@/src/context/RouteContext";
 import { AppRoute } from "@/src/lib/types";
+import { TOOLS_LIST } from "@/src/lib/constants/tools";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
 import { Card, CardContent } from "../ui/card";
 import { Sparkles, ArrowRight, Layers, Sliders, FileImage } from "lucide-react";
+import { useLanguage } from "@/src/context/LanguageContext";
 
 export function AIHelperPreview() {
   const { navigate } = useRoute();
+  const { t } = useLanguage();
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any | null>(null);
 
   const mockPreconfiguredQueries = [
-    "I need separate PNG images from this PDF document",
-    "I want to compress a bunch of JPG files and shrink their size",
-    "How do I preview a Lottie JSON file and validate it?",
+    t.aiHelperPrompt1,
+    t.aiHelperPrompt2,
+    t.aiHelperPrompt3,
   ];
 
   const handleQuerySubmit = async (customPrompt?: string) => {
@@ -46,16 +49,16 @@ export function AIHelperPreview() {
         });
       } else {
         setResult({
-          result: data.message || "Could not classify workflow automatically. Let's check the complete toolbox.",
+          result: data.message || t.aiHelperFallbackMsg,
           recommendedTools: [],
-          workflowSteps: ["Browse index of tools", "Pick individual process modules"],
+          workflowSteps: [t.aiHelperFallbackStep1, t.aiHelperFallbackStep2],
         });
       }
     } catch (e) {
       setResult({
-        result: `Workflow suggestion: PDF to PNG Converter. Followed by Image Resizer.`,
+        result: t.aiHelperErrorMsg,
         recommendedTools: ["pdf-to-png", "resize-image"],
-        workflowSteps: ["Upload PDF in the converter", "Choose an export scale", "Download the finished ZIP"],
+        workflowSteps: [t.aiHelperErrorStep1, t.aiHelperErrorStep2, t.aiHelperErrorStep3],
       });
     } finally {
       setLoading(false);
@@ -63,29 +66,13 @@ export function AIHelperPreview() {
   };
 
   const getToolRoute = (toolId: string): AppRoute => {
-    if (toolId === "pdf-to-png") return "/tools/pdf-to-png";
-    if (toolId === "image-to-pdf") return "/tools/image-to-pdf";
-    if (toolId === "resize-pdf") return "/tools/resize-pdf";
-    if (toolId === "pdf-compressor") return "/tools/pdf-compressor";
-    if (toolId === "compress-image") return "/tools/compress-image";
-    if (toolId === "resize-image") return "/tools/resize-image";
-    if (toolId === "remove-bg") return "/tools/remove-bg";
-    if (toolId === "lottie-preview") return "/tools/lottie-preview";
-    if (toolId === "json-formatter") return "/tools/json-formatter";
-    return "/tools";
+    const tool = TOOLS_LIST.find((t) => t.id === toolId);
+    return (tool ? tool.slug : "/tools") as AppRoute;
   };
 
   const getToolLabel = (toolId: string): string => {
-    if (toolId === "pdf-to-png") return "PDF to PNG";
-    if (toolId === "image-to-pdf") return "Image to PDF";
-    if (toolId === "resize-pdf") return "Resize PDF";
-    if (toolId === "pdf-compressor") return "PDF Compressor";
-    if (toolId === "compress-image") return "Image Compressor";
-    if (toolId === "resize-image") return "Image Resizer";
-    if (toolId === "remove-bg") return "Remove Background";
-    if (toolId === "lottie-preview") return "Lottie Inspector";
-    if (toolId === "json-formatter") return "JSON Formatter";
-    return "Toolbox";
+    const tool = TOOLS_LIST.find((t) => t.id === toolId);
+    return tool ? tool.name : "Toolbox";
   };
 
   return (
@@ -96,25 +83,23 @@ export function AIHelperPreview() {
         <div className="lg:col-span-5 space-y-6">
           <div className="inline-flex items-center gap-1.5 rounded-md bg-accent-bg px-2.5 py-1 text-xs font-semibold text-accent-secondary">
             <Sparkles className="h-3.5 w-3.5" />
-            Gemini Creative Assistant
+            {t.aiHelperBadge}
           </div>
 
           <h2 className="font-sans text-3xl font-extrabold tracking-tight text-text-primary">
-            Smart routing for complex asset tasks
+            {t.aiHelperTitle}
           </h2>
           
           <p className="text-sm text-text-secondary leading-relaxed">
-            Unsure which specific converter fits your workflow? Tell our Creative Assistant what 
-            you intend to create in plain speech. 
+            {t.aiHelperSubtitle}
           </p>
 
           <p className="text-xs text-text-muted leading-relaxed">
-            Note: Gemini acts as your advisory architect. The heavy conversion mathematics run 
-            on sandboxed web compiler nodes, avoiding server-side delays and data exposures.
+            {t.aiHelperNote}
           </p>
 
           <div className="flex flex-col gap-2 pt-2">
-            <span className="text-xs font-semibold text-text-primary">Or test live prompts:</span>
+            <span className="text-xs font-semibold text-text-primary">{t.aiHelperTest}</span>
             {mockPreconfiguredQueries.map((q, idx) => (
               <button
                 key={idx}
@@ -138,15 +123,15 @@ export function AIHelperPreview() {
               
               {/* Query Entry Panel */}
               <div className="space-y-3">
-                <h3 className="text-sm font-bold text-text-primary">What do you want to do with your asset?</h3>
+                <h3 className="text-sm font-bold text-text-primary">{t.aiHelperQuestion}</h3>
                 <Textarea
-                  placeholder="e.g. I need to convert a PDF into individual slides then resize them for an Instagram post..."
+                  placeholder={t.aiHelperPlaceholder}
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   className="min-h-[110px]"
                 />
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-text-muted">Calculates recommended workflow steps</span>
+                  <span className="text-[10px] text-text-muted">{t.aiHelperCalc}</span>
                   <Button
                     variant="primary"
                     size="sm"
@@ -154,7 +139,7 @@ export function AIHelperPreview() {
                     disabled={loading || !prompt.trim()}
                     className="cursor-pointer"
                   >
-                    {loading ? "Routing workflow..." : "Consult Assistant"}
+                    {loading ? t.aiHelperRouting : t.aiHelperConsult}
                   </Button>
                 </div>
               </div>
@@ -165,7 +150,7 @@ export function AIHelperPreview() {
                   
                   {/* Explanation text */}
                   <div className="bg-brand-secondary p-4 rounded-xl border border-brand-border">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-accent-secondary">Advisor report</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-accent-secondary">{t.aiHelperReport}</span>
                     <p className="text-sm text-text-primary mt-1 leading-relaxed">
                       {result.result}
                     </p>
@@ -174,7 +159,7 @@ export function AIHelperPreview() {
                   {/* Recommendation action list */}
                   {result.recommendedTools && result.recommendedTools.length > 0 && (
                     <div className="space-y-3">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Workflow module pipeline</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">{t.aiHelperPipeline}</span>
                       
                       <div className="flex flex-wrap items-center gap-2">
                         {result.recommendedTools.map((tId: string, i: number) => (
@@ -195,7 +180,7 @@ export function AIHelperPreview() {
                   {/* Sequence actions listed */}
                   {result.workflowSteps && result.workflowSteps.length > 0 && (
                     <div className="space-y-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted text-xs block">Execution steps</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted text-xs block">{t.aiHelperSteps}</span>
                       <ol className="text-xs space-y-1.5 text-text-secondary list-decimal pl-4">
                         {result.workflowSteps.map((step: string, idx: number) => (
                           <li key={idx} className="leading-relaxed">{step}</li>

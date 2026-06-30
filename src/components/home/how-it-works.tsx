@@ -1,25 +1,27 @@
 import React from "react";
 import { DownloadCloud, LayoutGrid, CheckCircle } from "lucide-react";
+import { useLanguage } from "@/src/context/LanguageContext";
 
 export function HowItWorks() {
+  const { t } = useLanguage();
   const steps = [
     {
       step: "01",
       icon: DownloadCloud,
-      title: "Drop or choose asset",
-      description: "Select your image, PDF, or JSON vector animations. File headers will be analyzed in real-time.",
+      title: t.hiwStep1Title,
+      description: t.hiwStep1Desc,
     },
     {
       step: "02",
       icon: LayoutGrid,
-      title: "Configure settings",
-      description: "Set compressor scaling factors, quality coefficients, or run code formatters locally.",
+      title: t.hiwStep2Title,
+      description: t.hiwStep2Desc,
     },
     {
       step: "03",
       icon: CheckCircle,
-      title: "Consolidated exports",
-      description: "Verify inputs in a split preview container, and download individual assets or single ZIP archives.",
+      title: t.hiwStep3Title,
+      description: t.hiwStep3Desc,
     },
   ];
 
@@ -28,10 +30,10 @@ export function HowItWorks() {
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto max-w-2xl text-center mb-14">
           <h2 className="font-sans text-2xl font-extrabold tracking-tight text-text-primary md:text-3xl">
-            Streamlined processing flow
+            {t.hiwTitle}
           </h2>
           <p className="text-sm text-text-secondary mt-1.5 leading-relaxed">
-            Upload your assets, choose the settings you need, and export a polished result safely inside one workspace.
+            {t.hiwSubtitle}
           </p>
         </div>
 

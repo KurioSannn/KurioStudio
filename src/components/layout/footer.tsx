@@ -1,9 +1,11 @@
 import React from "react";
 import { useRoute } from "@/src/context/RouteContext";
+import { useLanguage } from "@/src/context/LanguageContext";
 import { AppRoute } from "@/src/lib/types";
 
 export function Footer() {
   const { navigate } = useRoute();
+  const { t } = useLanguage();
 
   return (
     <footer className="bg-white text-[#6B6258] border-t border-[#E7E2D8] py-12 px-6 md:px-10" id="global-footer">
@@ -16,33 +18,32 @@ export function Footer() {
               <img src="/BrandingKurio.png" alt="Kurio Studio Logo" className="h-10 w-auto object-contain" />
             </div>
             <p className="text-xs text-[#6B6258] leading-relaxed max-w-md">
-              Create, convert, and prepare assets faster. Kurio Studio delivers high-performance 
-              client-side formats and AI-assisted workflows in one streamlined sandbox. Built for creators, designers, and developers.
+              {t.footerDesc}
             </p>
           </div>
  
           {/* Quick Nav */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#171717] mb-3">Workspace</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#171717] mb-3">{t.footerWorkspace}</h4>
             <ul className="text-xs space-y-2">
               <li>
                 <button onClick={() => navigate("/tools")} className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258] cursor-pointer">
-                  Asset Converters
+                  {t.footerAssetConverters}
                 </button>
               </li>
               <li>
                 <button onClick={() => navigate("/workspace")} className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258] cursor-pointer">
-                  My History
+                  {t.footerMyHistory}
                 </button>
               </li>
               <li>
                 <button onClick={() => navigate("/ai-helper")} className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258] cursor-pointer">
-                  Creative Assistant
+                  {t.footerCreativeAssistant}
                 </button>
               </li>
               <li>
                 <button onClick={() => navigate("/settings")} className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258] cursor-pointer">
-                  Privacy & Beta Info
+                  {t.footerPrivacyBeta}
                 </button>
               </li>
               <li>
@@ -52,7 +53,7 @@ export function Footer() {
               </li>
               <li>
                 <button onClick={() => navigate("/contact")} className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258] cursor-pointer">
-                  Contact
+                  {t.footerContact}
                 </button>
               </li>
             </ul>
@@ -60,19 +61,19 @@ export function Footer() {
  
           {/* Legal Guard */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#171717] mb-3">Trust & Privacy</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#171717] mb-3">{t.footerTrustPrivacy}</h4>
             <p className="text-[10px] text-[#9A9187] leading-relaxed">
-              Most file tools run directly in your browser. AI helper access is rate limited during public beta.
+              {t.footerTrustDesc}
             </p>
             <ul className="mt-4 text-xs space-y-2">
               <li>
                 <button onClick={() => navigate("/privacy")} className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258] cursor-pointer">
-                  Privacy Policy
+                  {t.footerPrivacyPolicy}
                 </button>
               </li>
               <li>
                 <button onClick={() => navigate("/terms")} className="hover:text-[#F59E0B] transition-colors text-left text-[#6B6258] cursor-pointer">
-                  Terms of Use
+                  {t.footerTerms}
                 </button>
               </li>
             </ul>
@@ -81,7 +82,7 @@ export function Footer() {
         </div>
  
         <div className="mt-8 pt-6 border-t border-[#E7E2D8] flex flex-col sm:flex-row justify-between items-center gap-4 text-[11px] text-[#9A9187]">
-          <span>&copy; {new Date().getFullYear()} Kurio Studio. All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()} {t.footerCopyright}</span>
         </div>
       </div>
     </footer>

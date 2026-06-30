@@ -1,18 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion, type Variants, type Easing } from "motion/react";
-import {
-  ArrowRight,
-  Bot,
-  Code2,
-  FileImage,
-  FileText,
-  Layers,
-  Minimize2,
-  Maximize2,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { ArrowRight, Bot, Code2, FileImage, FileText, Layers, Minimize2, Maximize2, ShieldCheck, Sparkles } from "lucide-react";
 import { useRoute } from "@/src/context/RouteContext";
+import { useLanguage } from "@/src/context/LanguageContext";
 
 /* ─────────────────────────────────────────────
    FLOATING ICON CONFIG
@@ -246,6 +236,7 @@ const itemVariants: Variants = {
 
 export function HeroSection() {
   const { navigate } = useRoute();
+  const { t } = useLanguage();
   const reducedMotion = useReducedMotion() ?? false;
   const heroRef = useRef<HTMLElement | null>(null);
   const [mouse, setMouse] = useState({ x: -999, y: -999 });
@@ -310,7 +301,7 @@ export function HeroSection() {
           >
             <ShieldCheck className="h-3.5 w-3.5 text-[#E07A2F]" />
             <span className="text-[11px] uppercase tracking-widest font-bold text-[#E07A2F]">
-              Public Beta
+              {t.publicBeta}
             </span>
           </motion.div>
 
@@ -319,7 +310,7 @@ export function HeroSection() {
             variants={itemVariants}
             className="font-sans text-4xl sm:text-5xl md:text-[3.6rem] font-extrabold tracking-tight text-[#171717] leading-[1.18] max-w-3xl"
           >
-            Your lightweight studio for everyday creative file tasks.
+            {t.heroHeadline}
           </motion.h1>
 
           {/* Subtitle */}
@@ -327,8 +318,7 @@ export function HeroSection() {
             variants={itemVariants}
             className="mx-auto mt-7 max-w-2xl text-base md:text-lg leading-relaxed text-[#6B6258]"
           >
-            Convert, compress, resize, format, and preview creative assets
-            without jumping between random tools or slowing down your workflow.
+            {t.heroSubtitle}
           </motion.p>
 
           {/* CTA Buttons */}
@@ -341,7 +331,7 @@ export function HeroSection() {
               onClick={() => navigate("/tools")}
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 bg-[#F59E0B] text-[#171717] rounded-2xl font-bold shadow-sm hover:shadow-md hover:bg-[#E08e00] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer text-sm"
             >
-              Start converting
+              {t.heroCTAPrimary}
               <ArrowRight className="h-4 w-4" />
             </button>
             <button
@@ -350,7 +340,7 @@ export function HeroSection() {
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3 bg-white border border-[#E7E2D8] text-[#3F3933] rounded-2xl font-semibold shadow-sm hover:bg-[#F3F0EA] hover:border-[#F59E0B]/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer text-sm"
             >
               <Bot className="h-4 w-4 text-[#F59E0B]" />
-              Try AI Helper
+              {t.heroCTASecondary}
             </button>
           </motion.div>
 
@@ -359,7 +349,7 @@ export function HeroSection() {
             variants={itemVariants}
             className="mt-6 text-[12px] text-[#6B6258] tracking-wide"
           >
-            Public beta&nbsp;•&nbsp;Browser-based file processing&nbsp;•&nbsp;Limited AI helper access
+            {t.heroTrustLine}
           </motion.p>
         </motion.div>
       </div>

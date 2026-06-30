@@ -5,6 +5,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { trackEvent } from "@/src/lib/analytics";
 import { ArrowLeft, HelpCircle, MessageSquare } from "lucide-react";
+import { useLanguage } from "@/src/context/LanguageContext";
 
 interface ToolPageShellProps {
   toolId: string;
@@ -14,6 +15,7 @@ interface ToolPageShellProps {
 
 export function ToolPageShell({ toolId, children, sidebar }: ToolPageShellProps) {
   const { navigate } = useRoute();
+  const { t } = useLanguage();
   
   // Find current tool definition
   const tool = TOOLS_LIST.find((t) => t.id === toolId);
@@ -25,9 +27,9 @@ export function ToolPageShell({ toolId, children, sidebar }: ToolPageShellProps)
   if (!tool) {
     return (
       <div className="py-20 text-center">
-        <h2 className="text-lg font-bold text-text-primary">Tool specification not found</h2>
+        <h2 className="text-lg font-bold text-text-primary">{t.toolShellNotFound}</h2>
         <Button variant="primary" onClick={() => navigate("/tools")} className="mt-4">
-          All tools directory
+          {t.toolShellAllTools}
         </Button>
       </div>
     );
@@ -50,7 +52,7 @@ export function ToolPageShell({ toolId, children, sidebar }: ToolPageShellProps)
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-secondary hover:text-accent-secondary transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to all tools
+          {t.toolShellBack}
         </button>
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -72,11 +74,11 @@ export function ToolPageShell({ toolId, children, sidebar }: ToolPageShellProps)
             {/* Quick Specifications list */}
             <div className="flex flex-wrap gap-4 text-xs bg-brand-surface border border-brand-border rounded-xl p-4.5 shrink-0 select-none">
               <div>
-                <span className="block text-text-muted text-[10px] uppercase font-bold tracking-wider">Accepted format</span>
+                <span className="block text-text-muted text-[10px] uppercase font-bold tracking-wider">{t.toolShellAccepted}</span>
                 <span className="font-mono text-text-primary mt-0.5 block">{tool.inputFormats.join(", ")}</span>
               </div>
               <div className="border-l border-brand-border pl-4">
-                <span className="block text-text-muted text-[10px] uppercase font-bold tracking-wider">Export format</span>
+                <span className="block text-text-muted text-[10px] uppercase font-bold tracking-wider">{t.toolShellExport}</span>
                 <span className="font-mono text-text-primary mt-0.5 block">{tool.outputFormats.join(", ")}</span>
               </div>
             </div>
@@ -88,12 +90,12 @@ export function ToolPageShell({ toolId, children, sidebar }: ToolPageShellProps)
               className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-brand-border bg-white px-4 text-xs font-bold text-text-primary shadow-xs transition-all hover:bg-brand-bg"
             >
               <MessageSquare className="h-4 w-4 text-accent-secondary" />
-              Send beta feedback
+              {t.toolShellFeedback}
             </a>
           </div>
         </div>
         <div className="rounded-xl border border-amber-500/20 bg-[#FFF8E6] p-3 text-xs leading-relaxed text-[#7A4A05]">
-          <span className="font-bold">Public beta note:</span> This tool is being tested across real files and browsers. Please report broken files, failed conversions, or confusing output.
+          <span className="font-bold">{t.toolShellBetaNoteLabel}</span> {t.toolShellBetaNote}
         </div>
       </div>
 
@@ -109,7 +111,7 @@ export function ToolPageShell({ toolId, children, sidebar }: ToolPageShellProps)
         <div className="pt-10 border-t border-brand-border space-y-6">
           <div className="flex items-center gap-2">
             <HelpCircle className="h-4.5 w-4.5 text-accent-secondary" />
-            <h3 className="text-sm font-bold text-text-primary">Related suite utilities</h3>
+            <h3 className="text-sm font-bold text-text-primary">{t.toolShellRelated}</h3>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">

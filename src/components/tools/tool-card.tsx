@@ -4,6 +4,7 @@ import { useRoute } from "@/src/context/RouteContext";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { FileText, Image, Clapperboard, Film, Code2, Layers } from "lucide-react";
+import { useLanguage } from "@/src/context/LanguageContext";
 
 interface ToolCardProps {
   tool: ToolDefinition;
@@ -12,6 +13,7 @@ interface ToolCardProps {
 
 export function ToolCard({ tool }: ToolCardProps) {
   const { navigate } = useRoute();
+  const { t } = useLanguage();
   const isComingSoon = tool.status === "coming-soon";
 
   const getCategoryIcon = (category: string) => {
@@ -37,7 +39,7 @@ export function ToolCard({ tool }: ToolCardProps) {
             <Icon className="h-4.5 w-4.5" />
           </div>
           <Badge variant={tool.status === "ready" ? "ready" : tool.status === "beta" ? "beta" : "comingSoon"}>
-            {tool.status === "ready" ? "ready" : tool.status === "beta" ? "beta" : "coming soon"}
+            {tool.status === "ready" ? "ready" : tool.status === "beta" ? "beta" : t.comingSoon}
           </Badge>
         </div>
 
@@ -46,17 +48,17 @@ export function ToolCard({ tool }: ToolCardProps) {
         </h3>
         
         <p className="text-[11px] text-text-secondary mt-2 leading-relaxed min-h-[32px]">
-          {isComingSoon ? "This tool is disabled during public beta while we finish reliability testing." : tool.description}
+          {isComingSoon ? t.toolCardComingSoonDesc : tool.description}
         </p>
 
         {/* Requirements specs panel */}
         <div className="mt-4 pt-3 border-t border-brand-soft/40 grid grid-cols-2 gap-2 text-[10px]">
           <div>
-            <span className="block text-text-muted font-medium uppercase tracking-wider text-[8px]">Inputs</span>
+            <span className="block text-text-muted font-medium uppercase tracking-wider text-[8px]">{t.toolCardInputs}</span>
             <span className="font-mono text-text-secondary mt-0.5 block truncate">{tool.inputFormats.join(", ")}</span>
           </div>
           <div>
-            <span className="block text-text-muted font-medium uppercase tracking-wider text-[8px]">Outputs</span>
+            <span className="block text-text-muted font-medium uppercase tracking-wider text-[8px]">{t.toolCardOutputs}</span>
             <span className="font-mono text-text-secondary mt-0.5 block truncate">{tool.outputFormats.join(", ")}</span>
           </div>
         </div>
@@ -70,7 +72,7 @@ export function ToolCard({ tool }: ToolCardProps) {
             className="w-full text-xs font-semibold cursor-pointer"
             onClick={() => navigate(tool.slug)}
           >
-            Open tool
+            {t.openTool}
           </Button>
         ) : (
           <Button
@@ -79,7 +81,7 @@ export function ToolCard({ tool }: ToolCardProps) {
             className="w-full text-xs font-semibold opacity-60 cursor-not-allowed"
             disabled
           >
-            Coming soon
+            {t.comingSoon}
           </Button>
         )}
       </div>

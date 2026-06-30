@@ -4,6 +4,7 @@ import { useRoute } from "@/src/context/RouteContext";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { FileText, Image, Clapperboard, Film, Code2, Layers, ArrowRight, Activity } from "lucide-react";
+import { useLanguage } from "@/src/context/LanguageContext";
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   FileText,
@@ -16,6 +17,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export function FeaturedTools() {
   const { navigate } = useRoute();
+  const { t } = useLanguage();
 
   // Highlight specific active tools on the homepage grid
   const featured = TOOLS_LIST.slice(0, 8);
@@ -36,10 +38,10 @@ export function FeaturedTools() {
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
         <div className="text-center md:text-left">
           <h2 className="font-sans text-2xl font-extrabold tracking-tight text-text-primary md:text-3xl">
-            Featured creator utilities
+            {t.featToolsTitle}
           </h2>
           <p className="text-sm text-text-secondary mt-1.5 max-w-xl">
-            Fully functional client-optimized tools ready to run inside your workspace now.
+            {t.featToolsSubtitle}
           </p>
         </div>
         <Button
@@ -47,7 +49,7 @@ export function FeaturedTools() {
           onClick={() => navigate("/tools")}
           className="shrink-0 group cursor-pointer"
         >
-          Browse all tools
+          {t.featToolsBrowse}
           <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
         </Button>
       </div>
@@ -59,7 +61,11 @@ export function FeaturedTools() {
           return (
             <div
               key={tool.id}
-              className="flex flex-col justify-between rounded-xl border border-brand-border bg-brand-surface p-5.5 hover:shadow-xs hover:border-brand-border duration-200"
+              className={`flex flex-col justify-between rounded-xl border border-brand-border bg-brand-surface p-5.5 duration-200 ${
+                tool.status !== "coming-soon"
+                  ? "hover:shadow-xs hover:border-accent-primary hover:-translate-y-0.5 cursor-pointer"
+                  : "opacity-80 grayscale-[20%]"
+              }`}
             >
               <div>
                 {/* Header status bar */}
@@ -68,7 +74,7 @@ export function FeaturedTools() {
                     <CategoryIcon className="h-5 w-5" />
                   </div>
                   <Badge variant={tool.status === "ready" ? "ready" : tool.status === "beta" ? "beta" : "comingSoon"}>
-                    {tool.status === "ready" ? "ready" : tool.status === "beta" ? "beta" : "coming soon"}
+                    {tool.status === "ready" ? "ready" : tool.status === "beta" ? "beta" : t.featToolsComing}
                   </Badge>
                 </div>
 
@@ -84,11 +90,11 @@ export function FeaturedTools() {
                 {/* Formats specification section */}
                 <div className="mt-4 pt-3.5 border-t border-brand-soft/30 grid grid-cols-2 gap-3 text-[11px]">
                   <div>
-                    <span className="block text-text-muted font-medium uppercase tracking-wider text-[9px]">Input mime</span>
+                    <span className="block text-text-muted font-medium uppercase tracking-wider text-[9px]">{t.featToolsInput}</span>
                     <span className="font-mono text-text-secondary mt-0.5 block truncate">{tool.inputFormats.join(", ")}</span>
                   </div>
                   <div>
-                    <span className="block text-text-muted font-medium uppercase tracking-wider text-[9px]">Output type</span>
+                    <span className="block text-text-muted font-medium uppercase tracking-wider text-[9px]">{t.featToolsOutput}</span>
                     <span className="font-mono text-text-secondary mt-0.5 block truncate">{tool.outputFormats.join(", ")}</span>
                   </div>
                 </div>
@@ -103,7 +109,7 @@ export function FeaturedTools() {
                     className="w-full text-xs font-semibold cursor-pointer py-5"
                     onClick={() => navigate(tool.slug)}
                   >
-                    Open tool
+                    {t.featToolsOpen}
                   </Button>
                 ) : (
                   <Button
@@ -112,7 +118,7 @@ export function FeaturedTools() {
                     className="w-full text-xs font-semibold py-5 opacity-60 cursor-not-allowed"
                     disabled
                   >
-                    Coming soon
+                    {t.featToolsComing}
                   </Button>
                 )}
               </div>

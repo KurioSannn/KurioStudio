@@ -2,6 +2,7 @@ import React from "react";
 import { TOOL_CATEGORIES } from "@/src/lib/constants/tools";
 import { useRoute } from "@/src/context/RouteContext";
 import { FileText, Image, Clapperboard, Film, Code2, Layers, ArrowUpRight } from "lucide-react";
+import { useLanguage } from "@/src/context/LanguageContext";
 
 const ICON_MAP = {
   FileText: FileText,
@@ -14,6 +15,7 @@ const ICON_MAP = {
 
 export function ToolCategoryGrid() {
   const { navigate } = useRoute();
+  const { t } = useLanguage();
 
   const handleCategoryClick = (catKey: string) => {
     navigate(`/tools?category=${catKey}`);
@@ -23,10 +25,10 @@ export function ToolCategoryGrid() {
     <div className="mx-auto max-w-7xl px-6 py-12">
       <div className="mb-10 text-center md:text-left">
         <h2 className="font-sans text-2xl font-extrabold tracking-tight text-text-primary md:text-3xl">
-          Engineered categories
+          {t.catGridTitle}
         </h2>
         <p className="text-sm text-text-secondary mt-1.5 max-w-xl">
-          Explore our isolated modular workspace suites designed to tackle your repetitive asset tasks.
+          {t.catGridSubtitle}
         </p>
       </div>
 
@@ -56,8 +58,8 @@ export function ToolCategoryGrid() {
               </div>
 
               <div className="mt-6 pt-4 border-t border-brand-soft/40 flex items-center justify-between text-xs font-semibold text-text-muted group-hover:text-accent-secondary transition-colors">
-                <span>{value.count} module{value.count !== 1 ? 's' : ''} available</span>
-                <span className="underline">View modules</span>
+                <span>{value.count} {value.count !== 1 ? t.catGridModules : t.catGridModule}</span>
+                <span className="underline">{t.catGridView}</span>
               </div>
             </div>
           );

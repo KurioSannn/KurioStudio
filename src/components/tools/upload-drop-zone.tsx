@@ -3,6 +3,7 @@ import { Button } from "../ui/button";
 import { FolderUp, HelpCircle, FileCheck2, AlertCircle } from "lucide-react";
 import { formatBytes } from "@/src/lib/utils";
 import { motion } from "motion/react";
+import { useLanguage } from "@/src/context/LanguageContext";
 
 interface UploadDropZoneProps {
   acceptedExtensions: string[];
@@ -23,10 +24,11 @@ export function UploadDropZone({
   subtitle,
   multiple = false,
 }: UploadDropZoneProps) {
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [errorTitle, setErrorTitle] = useState<string>("Incompatible asset");
+  const [errorTitle, setErrorTitle] = useState<string>(t.uploadErrorIncompatible);
   const [errorSuggestion, setErrorSuggestion] = useState<string | null>(null);
 
   const validateFile = (file: File) => {
@@ -43,18 +45,18 @@ export function UploadDropZone({
     });
 
     if (!isAccepted) {
-      setErrorTitle("Unsupported file format");
-      setErrorMessage(`Invalid file format. Supported types: ${acceptedExtensions.join(", ")}`);
-      setErrorSuggestion("Export or convert the source file to one of the supported formats, then upload it again.");
+      setErrorTitle(t.uploadErrorUnsupported);
+      setErrorMessage(`${t.uploadErrorFormatDesc} ${acceptedExtensions.join(", ")}`);
+      setErrorSuggestion(t.uploadErrorFormatSuggest);
       return false;
     }
 
     // 2. Verify Size
     const maxByteSize = maxSizeMB * 1024 * 1024;
     if (file.size > maxByteSize) {
-      setErrorTitle("File is too large");
-      setErrorMessage(`File exceeds the ${maxSizeMB}MB maximum limit.`);
-      setErrorSuggestion("Use a smaller file, split the document, or reduce image dimensions before uploading.");
+      setErrorTitle(t.uploadErrorLarge);
+      setErrorMessage(`${t.uploadErrorSizeDesc} (${maxSizeMB}MB)`);
+      setErrorSuggestion(t.uploadErrorSizeSuggest);
       return false;
     }
 
@@ -159,7 +161,7 @@ export function UploadDropZone({
         </p>
 
         <Button variant="secondary" size="sm" type="button" className="pointer-events-none text-xs h-9">
-          Choose file
+          {t.uploadChooseFile}
         </Button>
       </motion.div>
 
