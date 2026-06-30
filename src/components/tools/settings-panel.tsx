@@ -6,7 +6,7 @@ interface SettingsPanelProps {
   children: React.ReactNode;
 }
 
-export function SettingsPanel({ title = "Tuning Preferences", children }: SettingsPanelProps) {
+export function SettingsPanel({ title = "Tool Settings", children }: SettingsPanelProps) {
   return (
     <div className="rounded-2xl border border-brand-border bg-brand-surface p-5 space-y-4 shadow-xs">
       <div className="flex items-center gap-2 pb-3 border-b border-brand-soft-border">

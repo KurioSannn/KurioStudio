@@ -72,7 +72,7 @@ export function ToolsDirectory() {
           Asset Creator Workbench
         </h1>
         <p className="text-sm text-text-secondary max-w-xl">
-          Search, filter, or access our custom localized client processes to structure and optimize elements in seconds.
+          Search by task, format, or workflow and open the right browser-based tool in seconds.
         </p>
       </div>
 
@@ -132,9 +132,9 @@ export function ToolsDirectory() {
             <Layers className="h-5.5 w-5.5" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-text-primary">No creative utilities matched search parameters</h4>
+            <h4 className="text-sm font-bold text-text-primary">No tools matched your search</h4>
             <p className="text-xs text-text-secondary mt-1">
-              Refine your filters, typed parameters, or consult our AI creative companion to construct workflows.
+              Try another format, category, or task name.
             </p>
           </div>
         </div>

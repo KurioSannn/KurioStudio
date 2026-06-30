@@ -47,6 +47,18 @@ Kurio Studio is currently in public testing. Core tools are usable, while some a
 * **AI Helper**
   Use Gemini-powered helpers for workflow recommendations, file naming, and caption writing.
 
+* **Smart Quick Drop**
+  Drag and drop files anywhere on the home page for automatic tool routing.
+
+* **Workspace Export**
+  Export local workspace history to JSON for record-keeping and workflow audits.
+
+* **Output Comparison**
+  Compare original versus compressed files side-by-side to visually inspect quality.
+
+* **Preset Social Canvas**
+  Ready-to-use canvas presets for social media (Instagram, TikTok, LinkedIn, etc.) in the Image Resizer.
+
 ### Coming Soon
 
 * Remove Background

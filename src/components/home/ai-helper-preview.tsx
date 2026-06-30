@@ -55,7 +55,7 @@ export function AIHelperPreview() {
       setResult({
         result: `Workflow suggestion: PDF to PNG Converter. Followed by Image Resizer.`,
         recommendedTools: ["pdf-to-png", "resize-image"],
-        workflowSteps: ["Upload pdf in converter", "Adjust export scale parameters", "Download finished zip"],
+        workflowSteps: ["Upload PDF in the converter", "Choose an export scale", "Download the finished ZIP"],
       });
     } finally {
       setLoading(false);

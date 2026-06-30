@@ -103,7 +103,7 @@ export function FeaturedTools() {
                     className="w-full text-xs font-semibold cursor-pointer py-5"
                     onClick={() => navigate(tool.slug)}
                   >
-                    Launch program
+                    Open tool
                   </Button>
                 ) : (
                   <Button
@@ -112,7 +112,7 @@ export function FeaturedTools() {
                     className="w-full text-xs font-semibold py-5 opacity-60 cursor-not-allowed"
                     disabled
                   >
-                    Reserved
+                    Coming soon
                   </Button>
                 )}
               </div>

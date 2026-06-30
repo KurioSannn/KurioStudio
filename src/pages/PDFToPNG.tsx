@@ -353,7 +353,7 @@ export function PDFToPNG() {
               {/* Scale quality selectors */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-[#6B6258] uppercase tracking-wide">
-                  Tuning Scale Factor (Resolution)
+                  Output scale
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {[1.0, 2.0, 3.0].map((val) => (
@@ -373,7 +373,7 @@ export function PDFToPNG() {
                   ))}
                 </div>
                 <span className="text-[10px] text-[#9A9187] mt-1 block leading-normal">
-                  Higher scale values yield extremely crisp lines but consume more memory and graphics power.
+                  Higher scale values create sharper PNGs but use more browser memory.
                 </span>
               </div>
 

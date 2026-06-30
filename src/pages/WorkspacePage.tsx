@@ -166,7 +166,7 @@ export function WorkspacePage() {
               className="text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200"
             >
               <Trash2 className="h-4 w-4" />
-              Wipe Cache
+              Clear History
             </Button>
           </div>
         )}
@@ -346,7 +346,7 @@ export function WorkspacePage() {
             <History className="h-5.5 w-5.5" />
           </div>
           <div>
-            <h4 className="text-sm font-bold text-text-primary">Workspace log history is empty</h4>
+            <h4 className="text-sm font-bold text-text-primary">Workspace history is empty</h4>
             <p className="text-xs text-text-secondary mt-1">
               Process a file with any tool or drop a file on the home page to start a local history.
             </p>

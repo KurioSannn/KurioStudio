@@ -31,7 +31,7 @@ export function HowItWorks() {
             Streamlined processing flow
           </h2>
           <p className="text-sm text-text-secondary mt-1.5 leading-relaxed">
-            Upload your creator assets, choose your tuning parameters, and export a polished result safely inside one unified workbench.
+            Upload your assets, choose the settings you need, and export a polished result safely inside one workspace.
           </p>
         </div>
 

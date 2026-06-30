@@ -132,7 +132,7 @@ export function ResizeImage() {
       addToWorkspaceHistory({
         toolId: "resize-image",
         toolName: "Image Resizer",
-        fileName: file?.name || "graphic_asset.png",
+        fileName: file?.name || "image_asset.png",
         fileSize: file?.size || 0,
         outputType: "PNG",
         status: "completed",
@@ -245,7 +245,7 @@ export function ResizeImage() {
               acceptedExtensions={[".jpg", ".jpeg", ".png", ".webp"]}
               onFileSelected={handleFileSelected}
               title="Upload your image to resize"
-              subtitle="Drag & drop JPG, PNG or WebP files here or click to browse. Resizing occurs natively on your client engine."
+              subtitle="Drag & drop JPG, PNG or WebP files here or click to browse. Resizing runs inside your browser."
             />
           ) : (
             <SettingsPanel title="Dimension controllers">
@@ -328,7 +328,7 @@ export function ResizeImage() {
             <OutputPanel
               title={`Resizer Inspector Page (${width} x ${height} px active)`}
               onDownloadAll={resizedUrl ? downloadResized : undefined}
-              downloadLabel="Export scaled graphic package"
+              downloadLabel="Download resized image"
               isProcessing={loading}
             >
               {errorText && (

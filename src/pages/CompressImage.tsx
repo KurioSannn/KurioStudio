@@ -443,7 +443,7 @@ export function CompressImage() {
               subtitle="Drag & drop one or many PNG, JPG, or WebP files here. Compression runs inside your browser."
             />
           ) : (
-            <SettingsPanel title="Tuning Parameters">
+            <SettingsPanel title="Compression settings">
               
               {/* Quality slider */}
               <div className="space-y-2">
@@ -469,7 +469,7 @@ export function CompressImage() {
                       disabled={loading}
                     />
                     <span className="text-[10px] text-[#9A9187] mt-0.5 block leading-normal">
-                      Lower percentages create smaller payloads. 80% contains pristine professional fidelity.
+                      Lower quality usually creates smaller files. 80% keeps strong visual detail for most web assets.
                     </span>
                   </>
                 )}
@@ -524,11 +524,11 @@ export function CompressImage() {
                 </div>
               </div>
 
-              {/* Flush buttons */}
+              {/* Reset buttons */}
               <div className="pt-4 border-t border-[#E7E2D8]">
                 <Button variant="ghost" size="sm" onClick={clearWorkspace} className="w-full gap-2 text-xs border border-[#E7E2D8]">
                   <Trash2 className="h-3.5 w-3.5" />
-                  Clear graphic
+                  Clear image
                 </Button>
               </div>
 
@@ -592,7 +592,7 @@ export function CompressImage() {
               originalSize={file.size}
               compressedSize={loading ? undefined : compressedSize}
               onDownloadAll={compressedFileUrl && !loading ? downloadCompressed : undefined}
-              downloadLabel="Download optimized graphic"
+              downloadLabel="Download optimized image"
               isProcessing={loading}
             >
               {friendlyError && !loading && (

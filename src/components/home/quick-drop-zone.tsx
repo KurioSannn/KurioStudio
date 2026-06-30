@@ -255,7 +255,7 @@ export function QuickDropZone() {
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div>
-                <h4 className="text-base font-bold text-text-primary">File payload exceeds limits</h4>
+                <h4 className="text-base font-bold text-text-primary">File is too large</h4>
                 <p className="text-sm text-text-secondary mt-1">
                   The uploaded item exceeds our current max file size parameter (50 MB). Please pick a smaller file.
                 </p>

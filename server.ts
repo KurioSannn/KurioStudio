@@ -210,8 +210,10 @@ app.post("/api/gemini", async (req: Request, res: Response): Promise<void> => {
       mockResult = "This Lottie animation file matches standard Web Player specifications. No critical syntax errors found. It carries key performance metadata ready for render.";
     } else if (mode === "filename-helper" || mode === "naming-helper") {
       mockResult = "exported-brand-asset.png\nbrand-workflow-export.png";
+    } else if (mode === "json-helper") {
+      mockResult = String(userInput);
     } else {
-      mockResult = `Processed workflow option under mode: ${mode}. Set GEMINI_API_KEY under settings to activate live intelligence parameters.`;
+      mockResult = `Processed request under mode: ${mode}. Set GEMINI_API_KEY to enable live AI responses.`;
     }
 
     res.json({
@@ -270,8 +272,12 @@ Keep responses concise, listing 3 bullet points maximum. Do not use emojis.`;
       systemInstruction = `You are Kurio Studio's Smart File Naming assistant.
 Generate a list of 2 extremely clean, descriptive, lowercase, kebab-case file names suitable for final exports based on user inputs.`;
       promptText = `File info: name is "${userInput}" or metadata is ${JSON.stringify(fileInfo || {})}`;
+    } else if (mode === "json-helper") {
+      systemInstruction = `You are Kurio Studio's JSON repair assistant.
+Return only valid JSON. Do not include markdown, commentary, explanations, or code fences.`;
+      promptText = `Repair this JSON so it parses correctly:\n${userInput}`;
     } else {
-      systemInstruction = `You are Kurio Studio's Creative Client workflow companion. Give human-centric, highly professional developer-minded suggestions. Do do not use emojis.`;
+      systemInstruction = `You are Kurio Studio's creative workflow helper. Give concise, practical suggestions. Do not use emojis.`;
       promptText = userInput;
     }
 
@@ -313,7 +319,7 @@ Generate a list of 2 extremely clean, descriptive, lowercase, kebab-case file na
     }
   } catch (error: any) {
     console.error("Gemini route failure:", error);
-    res.status(500).json({ success: false, message: "Gemini server processing error", error: error.message });
+    res.status(500).json({ success: false, message: "Gemini server processing error. Please try again later." });
   }
 });
 

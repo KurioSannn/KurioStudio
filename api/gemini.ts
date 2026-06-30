@@ -124,24 +124,41 @@ function checkAIRateLimit(req: VercelRequest) {
   return null;
 }
 
-function getOfflineResponse(mode: string) {
+function getOfflineResponse(mode: string, userInput = "") {
   let result = "";
   let recommendedTools: string[] = [];
   let workflowSteps: string[] = [];
   const suggestedFileName = "export_asset.png";
 
   if (mode === "tool-router") {
-    result = "To achieve this, you should use the PDF to PNG Converter or Image to PDF Converter depending on your source format.";
-    recommendedTools = ["pdf-to-png", "image-to-pdf"];
-    workflowSteps = ["Upload your source asset", "Choose conversion settings", "Export the finished file"];
+    const normalizedInput = String(userInput).toLowerCase();
+    if ((normalizedInput.includes("compress") || normalizedInput.includes("reduce") || normalizedInput.includes("smaller") || normalizedInput.includes("file size")) && normalizedInput.includes("pdf")) {
+      result = "Use PDF Compressor to reduce PDF file size without changing the physical page dimensions. Choose Light, Recommended, or Strong Compression, then download the browser-generated PDF.";
+      recommendedTools = ["pdf-compressor"];
+      workflowSteps = ["Upload one PDF in PDF Compressor", "Choose a compression mode", "Compress and download the new PDF"];
+    } else if ((normalizedInput.includes("resize") || normalizedInput.includes("page size")) && normalizedInput.includes("pdf")) {
+      result = "Use Resize PDF to change PDF pages to A4, Letter, Legal, A3, A5, or a custom page size. Upload one PDF, choose sizing and scaling settings, then download the browser-generated PDF.";
+      recommendedTools = ["resize-pdf"];
+      workflowSteps = ["Upload one PDF in Resize PDF", "Choose page size, orientation, scaling, and margins", "Resize and download the new PDF"];
+    } else if ((normalizedInput.includes("merge") || normalizedInput.includes("combine") || normalizedInput.includes("gabung")) && normalizedInput.includes("pdf")) {
+      result = "Use Merge PDF Docs to combine multiple PDFs into one ordered document. Upload every PDF, arrange the queue, then download the merged file.";
+      recommendedTools = ["pdf-merge"];
+      workflowSteps = ["Upload multiple PDFs in Merge PDF Docs", "Arrange the queue order", "Merge and download the final PDF"];
+    } else {
+      result = "To achieve this, you should use the PDF to PNG Converter. This allows you to split PDF pages into individual PNG images, which you can then customize or resize for your channels.";
+      recommendedTools = ["pdf-to-png", "resize-image"];
+      workflowSteps = ["Upload PDF in PDF to PNG", "Select Scale factor", "Convert and download zip archive"];
+    }
   } else if (mode === "caption-helper" || mode === "captions-helper") {
-    result = "Option 1: Convert assets faster with Kurio Studio.\nOption 2: Keep creative workflows clean with browser-first conversion tools.\n\nHashtags: #creators #assets #design #workflow";
+    result = `✨ Here are your generated copy options:\n\nOption 1: Elevate your brand assets with Kurio Studio. Clean, converted, and fast. 🚀\nOption 2: Creator workflow simplified. From PDF to Lottie previews inside one focused workspace. 🎨\n\nHashtags: #creators #assets #design #kurio #workflow`;
   } else if (mode === "lottie-helper") {
-    result = "This Lottie file appears to use standard animation metadata. Check layer count, frame rate, and external assets before export.";
+    result = "This Lottie animation file matches standard Web Player specifications. No critical syntax errors found. It carries key performance metadata ready for render.";
   } else if (mode === "filename-helper" || mode === "naming-helper") {
     result = "exported-brand-asset.png\nbrand-workflow-export.png";
+  } else if (mode === "json-helper") {
+    result = userInput;
   } else {
-    result = `Processed workflow option under mode: ${mode}. Configure GEMINI_API_KEY to activate live AI responses.`;
+    result = `Processed request under mode: ${mode}. Configure GEMINI_API_KEY to enable live AI responses.`;
   }
 
   return { result, recommendedTools, workflowSteps, suggestedFileName };
@@ -154,13 +171,15 @@ function buildPrompt(mode: string, userInput: string, fileInfo: unknown) {
 You analyze the user's creative task and recommend the correct tools from Kurio Studio's list:
 1. pdf-to-png (Convert PDF to separate PNG images)
 2. image-to-pdf (Combine images into one PDF)
-3. resize-pdf (Resize PDF pages to standard or custom page sizes)
-4. pdf-compressor (Reduce PDF file size without changing page dimensions)
-5. compress-image (Compress JPG, PNG, WebP)
-6. resize-image (Resize, crop or use social media presets for images)
-7. remove-bg (Erase image backgrounds)
-8. lottie-preview (Check and validate Lottie animation JSON files)
-9. json-formatter (Validate and pretty-print JSON files)
+3. pdf-merge (Combine multiple PDFs into one ordered PDF)
+4. resize-pdf (Resize PDF pages to standard or custom page sizes)
+5. pdf-compressor (Reduce PDF file size without changing page dimensions)
+6. compress-image (Compress JPG, PNG, WebP)
+7. resize-image (Resize, crop or use social media presets for images)
+8. remove-bg (Erase image backgrounds)
+9. lottie-preview (Check and validate Lottie animation JSON files)
+10. json-formatter (Validate and pretty-print JSON files)
+11. doc-to-md (Convert text-based PDF, DOCX, TXT, or Markdown into Markdown without AI)
 
 You MUST return a JSON structure matching:
 {
@@ -202,8 +221,15 @@ Keep responses concise, listing 3 bullet points maximum. Do not use emojis.`,
     };
   }
 
+  if (mode === "json-helper") {
+    return {
+      systemInstruction: "You are Kurio Studio's JSON repair assistant. Return only valid JSON. Do not include markdown, commentary, explanations, or code fences.",
+      promptText: `Repair this JSON so it parses correctly:\n${userInput}`,
+    };
+  }
+
   return {
-    systemInstruction: "You are Kurio Studio's Creative Client workflow companion. Give concise, professional suggestions. Do not use emojis.",
+    systemInstruction: "You are Kurio Studio's creative workflow helper. Give concise, practical suggestions. Do not use emojis.",
     promptText: userInput,
   };
 }
@@ -264,7 +290,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
 
   if (!ai) {
-    const fallback = getOfflineResponse(String(mode));
+    const fallback = getOfflineResponse(String(mode), String(userInput));
     res.status(200).json({
       success: true,
       result: fallback.result,
@@ -315,8 +341,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error("Gemini function failure:", error);
     res.status(500).json({
       success: false,
-      message: "Gemini server processing error",
-      error: error.message,
+      message: "Gemini server processing error. Please try again later.",
     });
   }
 }

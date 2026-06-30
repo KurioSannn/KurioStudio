@@ -70,7 +70,7 @@ export function ToolCard({ tool }: ToolCardProps) {
             className="w-full text-xs font-semibold cursor-pointer"
             onClick={() => navigate(tool.slug)}
           >
-            Launch Program
+            Open tool
           </Button>
         ) : (
           <Button
@@ -79,7 +79,7 @@ export function ToolCard({ tool }: ToolCardProps) {
             className="w-full text-xs font-semibold opacity-60 cursor-not-allowed"
             disabled
           >
-            Reserved
+            Coming soon
           </Button>
         )}
       </div>

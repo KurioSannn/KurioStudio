@@ -48,7 +48,7 @@ export function AIHelperPage() {
 
       if (activeMode === "naming") {
         gModeStr = "filename-helper";
-        payloadPrompt = `Prefix tag: ${prefixName}. Design contextual intention: ${userText}`;
+        payloadPrompt = `Prefix tag: ${prefixName}. Asset context: ${userText}`;
       } else if (activeMode === "captions") {
         gModeStr = "caption-helper";
         payloadPrompt = `Tone specification: ${captionTone}. Concept to elaborate: ${userText}`;
@@ -67,7 +67,7 @@ export function AIHelperPage() {
       
       const botResponseText = data.success 
         ? data.result 
-        : data.message || "The service node returned an error during analysis. Please try again or examine characters.";
+        : data.message || "Kurio could not complete that request. Please try again with a shorter prompt.";
 
       setChatLog((prev) => [
         ...prev,
@@ -85,7 +85,7 @@ export function AIHelperPage() {
         {
           id: Math.random().toString(),
           sender: "gemini",
-          text: "No active server-side communication could be made to Gemini APIs. Ensure matching environmental secret keys are set.",
+          text: "Kurio could not reach the AI helper. Check the server environment and try again.",
           timestamp: new Date(),
         },
       ]);
@@ -159,7 +159,7 @@ export function AIHelperPage() {
             <div className="rounded-xl border border-brand-border bg-brand-surface p-5 space-y-4 shadow-xs">
               <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider block">Namer Properties</span>
               <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-semibold text-text-secondary">Prefix tag nomenclature</label>
+                <label className="text-[10px] uppercase font-semibold text-text-secondary">File prefix</label>
                 <Input
                   placeholder="e.g. kurio_v1"
                   value={prefixName}
@@ -167,7 +167,7 @@ export function AIHelperPage() {
                 />
               </div>
               <span className="text-[9px] text-text-muted mt-1 block leading-normal">
-                Generates robust snake_case catalogs of file strings like curves, backgrounds, and titles.
+                Generates clean names for related assets such as logos, backgrounds, and title graphics.
               </span>
             </div>
           )}
@@ -275,9 +275,9 @@ export function AIHelperPage() {
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-center text-text-muted space-y-2">
                 <Sparkles className="h-7 w-7 text-[#D8D1C7] animate-pulse" />
-                <h4 className="text-sm font-bold text-text-primary">Dialogue history is empty</h4>
+                <h4 className="text-sm font-bold text-text-primary">Chat history is empty</h4>
                 <p className="text-xs text-text-secondary max-w-xs">
-                  Type a prompt below or load templates to activate real-time Gemini guidance.
+                  Type a prompt below or use a template to get AI guidance.
                 </p>
               </div>
             )}
@@ -286,7 +286,7 @@ export function AIHelperPage() {
           {/* Form write input */}
           <form onSubmit={executeAssistantCall} className="border-t border-brand-border p-4 bg-brand-secondary/60 flex gap-2.5 items-center select-none">
             <Input
-              placeholder={activeMode === "router" ? "What do you want to accomplish?" : "Detail your asset intentions..."}
+              placeholder={activeMode === "router" ? "What do you want to accomplish?" : "Describe the asset or campaign..."}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               disabled={loading}
@@ -314,7 +314,7 @@ export function AIHelperPage() {
                 onClick={clearDialogue}
                 type="button"
                 className="shrink-0 h-10 w-10 text-text-secondary border border-brand-border cursor-pointer bg-white"
-                title="Wipe screen Dialogue history"
+                title="Clear chat history"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

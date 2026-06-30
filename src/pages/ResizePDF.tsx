@@ -713,7 +713,7 @@ export function ResizePDF() {
 
           {pdfInfo ? (
             <OutputPanel
-              title="Resize export"
+              title="Resize output"
               originalSize={pdfInfo.file.size}
               compressedSize={resizedSize}
               onDownloadAll={resizedUrl ? downloadResizedPdf : undefined}

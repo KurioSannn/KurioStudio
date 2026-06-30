@@ -62,7 +62,7 @@ export function JSONFormatter() {
         addToWorkspaceHistory({
           toolId: "json-formatter",
           toolName: "JSON Formatter",
-          fileName: "formatted_payload.json",
+          fileName: "formatted-json.json",
           fileSize: text.length,
           outputType: "JSON Cleaned",
           status: "completed",
@@ -219,14 +219,14 @@ export function JSONFormatter() {
             <div className="flex gap-2.5 pt-4 border-t border-brand-soft-border">
               <Button variant="ghost" size="sm" onClick={cleanWorkspace} className="w-1/2 gap-2 text-xs border border-brand-border h-10">
                 <Trash2 className="h-3.5 w-3.5" />
-                Flush text
+                Clear text
               </Button>
               <div className="w-1/2">
                 <UploadDropZone
                   acceptedExtensions={[".json"]}
                   onFileSelected={handleFileSelected}
                   title="Choose file"
-                  subtitle=".json payload"
+                  subtitle=".json file"
                 />
               </div>
             </div>
@@ -262,7 +262,7 @@ export function JSONFormatter() {
               <CheckCircle2 className="h-5 w-5 text-accent-secondary" />
               <div>
                 <span className="font-bold text-text-primary block">JSON document is valid</span>
-                <span className="text-[10px] text-text-secondary mt-0.5 block">{successText || "Format compiled and validated successfully."}</span>
+                <span className="text-[10px] text-text-secondary mt-0.5 block">{successText || "JSON formatted and validated successfully."}</span>
               </div>
             </div>
           )}

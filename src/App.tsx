@@ -48,7 +48,7 @@ function MainAppRouter() {
     trackEvent("page_view", { route });
   }, [route]);
 
-  // Conditional rendering based on localized state hashes
+  // Render the view that matches the current app route.
   const renderRouteView = () => {
     const routePath = route.split("?")[0] as AppRoute;
 
