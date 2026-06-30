@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ToolPageShell } from "@/src/components/tools/tool-page-shell";
 import { UploadDropZone } from "@/src/components/tools/upload-drop-zone";
 import { SettingsPanel } from "@/src/components/tools/settings-panel";
@@ -7,6 +7,7 @@ import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
 import { Textarea } from "@/src/components/ui/textarea";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
+import { takePendingToolFile } from "@/src/lib/workspace/pending-file";
 import { trackEvent } from "@/src/lib/analytics";
 import { Trash2, Brackets, CheckCircle2, AlertCircle, Copy, FileCode, Check } from "lucide-react";
 
@@ -32,6 +33,11 @@ export function JSONFormatter() {
     };
     reader.readAsText(selectedFile);
   };
+
+  useEffect(() => {
+    const pending = takePendingToolFile("json-formatter");
+    if (pending) handleFileSelected(pending.file);
+  }, []);
 
   const validateAndFormat = (text: string, spacingValue: number, shouldTrack = false) => {
     setIsValid(null);

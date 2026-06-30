@@ -1,6 +1,6 @@
 import { AppRoute } from "../types";
 
-interface DetectedFileStats {
+export interface DetectedFileStats {
   category: "pdf" | "image" | "motion" | "video" | "developer" | "unsupported";
   recommendedToolId: string;
   name: string;
@@ -9,7 +9,8 @@ interface DetectedFileStats {
 }
 
 export function detectFileType(fileName: string, mimeType?: string): DetectedFileStats {
-  const extension = fileName.substring(fileName.lastIndexOf(".")).toLowerCase();
+  const lastDotIndex = fileName.lastIndexOf(".");
+  const extension = lastDotIndex >= 0 ? fileName.substring(lastDotIndex).toLowerCase() : "";
   
   if (extension === ".pdf" || mimeType === "application/pdf") {
     return {
@@ -34,12 +35,12 @@ export function detectFileType(fileName: string, mimeType?: string): DetectedFil
     };
   }
 
-  if (extension === ".json") {
+  if (extension === ".json" || mimeType === "application/json") {
     return {
       category: "motion", // Default to motion lottie or developer json
       recommendedToolId: "lottie-preview",
       name: "JSON Record",
-      extension: ".json",
+      extension: extension || ".json",
       slug: "/tools/lottie-preview",
     };
   }
@@ -71,6 +72,40 @@ export function detectFileType(fileName: string, mimeType?: string): DetectedFil
     extension: extension || "",
     slug: "/tools",
   };
+}
+
+export async function detectFileTypeForTool(file: File): Promise<DetectedFileStats> {
+  const detected = detectFileType(file.name, file.type);
+  const isJsonLike = detected.extension === ".json" || file.type === "application/json";
+
+  if (!isJsonLike) {
+    return detected;
+  }
+
+  try {
+    const text = await file.text();
+
+    if (isLottieJSON(text)) {
+      return {
+        ...detected,
+        category: "motion",
+        recommendedToolId: "lottie-preview",
+        name: "Lottie Animation JSON",
+        slug: "/tools/lottie-preview",
+      };
+    }
+
+    return {
+      category: "developer",
+      recommendedToolId: "json-formatter",
+      name: "JSON Data File",
+      extension: detected.extension || ".json",
+      slug: "/tools/json-formatter",
+    };
+  } catch (e) {
+    console.error("Failed to inspect JSON file contents:", e);
+    return detected;
+  }
 }
 
 /**

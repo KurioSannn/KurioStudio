@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useRoute } from "@/src/context/RouteContext";
-import { detectFileType } from "@/src/lib/tools/file-detector";
+import { detectFileTypeForTool, type DetectedFileStats } from "@/src/lib/tools/file-detector";
 import { formatBytes } from "@/src/lib/utils";
 import { Button } from "../ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card";
@@ -15,10 +15,10 @@ export function QuickDropZone() {
   
   // File states
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [detection, setDetection] = useState<ReturnType<typeof detectFileType> | null>(null);
-  const [status, setStatus] = useState<"idle" | "selected" | "error">("idle");
+  const [detection, setDetection] = useState<DetectedFileStats | null>(null);
+  const [status, setStatus] = useState<"idle" | "analyzing" | "selected" | "error">("idle");
 
-  const processSelectedFile = (file: File) => {
+  const processSelectedFile = async (file: File) => {
     if (!file) return;
 
     // Check size limit: 50MB (as specified in MAX_FILE_SIZE_MB env)
@@ -29,7 +29,10 @@ export function QuickDropZone() {
     }
 
     setUploadedFile(file);
-    const result = detectFileType(file.name, file.type);
+    setDetection(null);
+    setStatus("analyzing");
+
+    const result = await detectFileTypeForTool(file);
     setDetection(result);
     setStatus("selected");
 
@@ -128,6 +131,16 @@ export function QuickDropZone() {
               >
                 Browse Files
               </button>
+            </div>
+          )}
+
+          {status === "analyzing" && uploadedFile && (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="mb-4 h-10 w-10 animate-spin rounded-full border-2 border-brand-border border-t-accent-secondary" />
+              <h4 className="text-sm font-bold text-text-primary">Analyzing file structure</h4>
+              <p className="mt-1 max-w-sm text-xs leading-relaxed text-text-secondary">
+                Kurio is checking {uploadedFile.name} and matching it to the most relevant local tool.
+              </p>
             </div>
           )}
 

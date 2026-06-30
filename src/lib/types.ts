@@ -47,7 +47,7 @@ export interface WorkspaceItem {
 }
 
 export interface GeminiAPIRequest {
-  mode: "tool-router" | "caption-helper" | "error-explainer" | "filename-helper" | "lottie-helper";
+  mode: "tool-router" | "caption-helper" | "error-explainer" | "filename-helper" | "lottie-helper" | "json-helper";
   userInput: string;
   fileInfo?: {
     name: string;
