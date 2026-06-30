@@ -2,10 +2,22 @@ import React, { useEffect, useState } from "react";
 import { useRoute } from "@/src/context/RouteContext";
 import { AppRoute } from "@/src/lib/types";
 import { trackEvent } from "@/src/lib/analytics";
+import { toast } from "sonner";
 import { Menu, X } from "lucide-react";
 
 export function Navbar() {
   const { route, navigate } = useRoute();
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  // Listen for the PWA install prompt event
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault(); // Prevent the default mini-infobar
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const feedbackUrl = "https://github.com/KurioSannn/KurioStudio/issues/new";
 
@@ -22,7 +34,29 @@ export function Navbar() {
   const goToRoute = (to: AppRoute) => {
     setIsMenuOpen(false);
     navigate(to);
+    // If we have a deferred install prompt, show a toast to let user install the PWA
+    if (deferredPrompt) {
+      toast("Install Kurio Studio?", {
+        description: "Add to home screen for offline access.",
+        action: {
+          label: "Install",
+          onClick: () => {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult: any) => {
+              if (choiceResult.outcome === "accepted") {
+                console.log("User accepted PWA installation");
+              } else {
+                console.log("User dismissed PWA installation");
+              }
+              setDeferredPrompt(null);
+            });
+          },
+        },
+        duration: 12000,
+      });
+    }
   };
+
 
   return (
     <header className="sticky top-0 z-55 w-full border-b border-[#E7E2D8] bg-white">
