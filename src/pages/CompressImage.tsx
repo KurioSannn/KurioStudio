@@ -8,8 +8,9 @@ import { Button } from "@/src/components/ui/button";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
 import { takePendingToolFile } from "@/src/lib/workspace/pending-file";
 import { trackEvent } from "@/src/lib/analytics";
-import { formatBytes } from "@/src/lib/utils";
-import { Trash2, Image as ImageIcon, CheckCircle, AlertCircle, Files, Download } from "lucide-react";
+import { buildKurioFileName, formatBytes } from "@/src/lib/utils";
+import { getFriendlyToolError, type FriendlyToolError } from "@/src/lib/tool-errors";
+import { Trash2, Image as ImageIcon, CheckCircle, AlertCircle, Files, Download, Gauge } from "lucide-react";
 import JSZip from "jszip";
 
 interface CompressionResult {
@@ -18,6 +19,8 @@ interface CompressionResult {
   mime: string;
   width: number;
   height: number;
+  originalWidth: number;
+  originalHeight: number;
   warningText: string | null;
   successText: string | null;
 }
@@ -47,8 +50,10 @@ export function CompressImage() {
   const [originalFileUrl, setOriginalFileUrl] = useState<string | null>(null);
   const [compressedFileUrl, setCompressedFileUrl] = useState<string | null>(null);
   const [compressedSize, setCompressedSize] = useState<number | undefined>(undefined);
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [originalDimensions, setOriginalDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [outputDimensions, setOutputDimensions] = useState<{ width: number; height: number } | null>(null);
   const [warningText, setWarningText] = useState<string | null>(null);
+  const [friendlyError, setFriendlyError] = useState<FriendlyToolError | null>(null);
   const [successText, setSuccessText] = useState<string | null>(null);
   const [batchResults, setBatchResults] = useState<BatchCompressionItem[]>([]);
   const batchResultsRef = useRef<BatchCompressionItem[]>([]);
@@ -151,6 +156,8 @@ export function CompressImage() {
               mime: exportMime,
               width: targetWidth,
               height: targetHeight,
+              originalWidth: img.naturalWidth,
+              originalHeight: img.naturalHeight,
               warningText: nextWarning,
               successText: nextSuccess,
             });
@@ -171,8 +178,10 @@ export function CompressImage() {
     setFile(selectedFile);
     setLoading(true);
     setWarningText(null);
+    setFriendlyError(null);
     setSuccessText(null);
-    setDimensions(null);
+    setOriginalDimensions(null);
+    setOutputDimensions(null);
     setResolutionScale(100); // Reset scale on new file select
     setBatchResults([]);
     
@@ -197,11 +206,13 @@ export function CompressImage() {
   ) => {
     setLoading(true);
     setWarningText(null);
+    setFriendlyError(null);
     setSuccessText(null);
 
     compressImageFile(sourceFile, activeQuality, activeFormat, activeScale)
       .then((result) => {
-        setDimensions({ width: result.width, height: result.height });
+        setOriginalDimensions({ width: result.originalWidth, height: result.originalHeight });
+        setOutputDimensions({ width: result.width, height: result.height });
         setCompressedFileUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev);
           return result.url;
@@ -217,6 +228,12 @@ export function CompressImage() {
           fileSize: sourceFile.size,
           outputType: result.mime.replace("image/", "").toUpperCase(),
           status: "completed",
+          metadata: {
+            quality: activeQuality,
+            scale: `${activeScale}%`,
+            format: activeFormat,
+            outputSize: result.blob.size,
+          },
         });
         trackEvent("conversion_success", {
           toolId: "compress-image",
@@ -227,7 +244,9 @@ export function CompressImage() {
         });
       })
       .catch((error: Error) => {
-        setWarningText(error.message);
+        const friendly = getFriendlyToolError(error, "Image compression failed.");
+        setFriendlyError(friendly);
+        setWarningText(null);
         trackEvent("conversion_failed", { toolId: "compress-image", message: error.message });
       })
       .finally(() => setLoading(false));
@@ -263,6 +282,7 @@ export function CompressImage() {
           status: "completed",
         });
       } catch (error: any) {
+        const friendly = getFriendlyToolError(error, "Compression failed.");
         results.push({
           id: `${sourceFile.name}-${sourceFile.size}-${Math.random().toString(36).slice(2)}`,
           fileName: sourceFile.name,
@@ -272,7 +292,7 @@ export function CompressImage() {
           outputBlob: new Blob(),
           extension: getOutputExtension(sourceFile, outputFormat),
           status: "error",
-          errorMessage: error.message || "Compression failed.",
+          errorMessage: `${friendly.title}: ${friendly.suggestion}`,
         });
       }
       setBatchResults([...results]);
@@ -287,6 +307,14 @@ export function CompressImage() {
         fileSize: selectedFiles.reduce((sum, current) => sum + current.size, 0),
         outputType: "ZIP",
         status: "completed",
+        metadata: {
+          files: completed.length,
+          failed: results.length - completed.length,
+          quality,
+          format: outputFormat,
+          inputSize: selectedFiles.reduce((sum, current) => sum + current.size, 0),
+          outputSize: completed.reduce((sum, item) => sum + item.outputSize, 0),
+        },
       });
       trackEvent("conversion_success", {
         toolId: "compress-image",
@@ -336,10 +364,9 @@ export function CompressImage() {
       if (file.type === "image/jpeg" || file.type === "image/jpg") fileExt = ".jpg";
     }
 
-    const termName = file.name.substring(0, file.name.lastIndexOf("."));
     const link = document.createElement("a");
     link.href = compressedFileUrl;
-    link.download = `${termName}_optimized${fileExt}`;
+    link.download = buildKurioFileName(file.name, "compressed", fileExt);
     link.click();
   };
 
@@ -351,19 +378,19 @@ export function CompressImage() {
     try {
       const zip = new JSZip();
       completed.forEach((item) => {
-        const baseName = item.fileName.replace(/\.[^.]+$/, "") || "image";
-        zip.file(`${baseName}_optimized${item.extension}`, item.outputBlob);
+        zip.file(buildKurioFileName(item.fileName, "compressed", item.extension), item.outputBlob);
       });
 
       const zipBlob = await zip.generateAsync({ type: "blob" });
       const zipUrl = URL.createObjectURL(zipBlob);
       const link = document.createElement("a");
       link.href = zipUrl;
-      link.download = `kurio-image-compression-${completed.length}-files.zip`;
+      link.download = `kurio_image_compression_${completed.length}_files.zip`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(zipUrl), 3000);
     } catch (error: any) {
-      setWarningText(error.message || "Failed to assemble batch ZIP.");
+      setFriendlyError(getFriendlyToolError(error, "Failed to assemble batch ZIP."));
+      setWarningText(null);
       trackEvent("conversion_failed", { toolId: "compress-image", message: error.message || "Batch ZIP failed", mode: "batch" });
     } finally {
       setLoading(false);
@@ -377,8 +404,10 @@ export function CompressImage() {
     setOriginalFileUrl(null);
     setCompressedFileUrl(null);
     setCompressedSize(undefined);
-    setDimensions(null);
+    setOriginalDimensions(null);
+    setOutputDimensions(null);
     setWarningText(null);
+    setFriendlyError(null);
     setSuccessText(null);
     setResolutionScale(100);
     batchResults.forEach((item) => URL.revokeObjectURL(item.outputUrl));
@@ -391,6 +420,12 @@ export function CompressImage() {
   const completedBatchResults = batchResults.filter((item) => item.status === "completed");
   const batchOriginalSize = batchResults.reduce((total, item) => total + item.originalSize, 0);
   const batchOutputSize = completedBatchResults.reduce((total, item) => total + item.outputSize, 0);
+  const batchSavedBytes = Math.max(0, batchOriginalSize - batchOutputSize);
+  const activeOutputFormat = compressedFileUrl && file ? getExportMime(file, outputFormat).replace("image/", "").toUpperCase() : "-";
+  const reductionPercent =
+    file && compressedSize !== undefined && file.size > 0
+      ? Math.round(((file.size - compressedSize) / file.size) * 100)
+      : null;
 
   return (
     <ToolPageShell toolId="compress-image">
@@ -509,11 +544,11 @@ export function CompressImage() {
               <ul className="space-y-1.5 text-[#6B6258] list-disc pl-4 leading-normal font-mono">
                 <li>Name: <span className="text-[#171717] truncate font-semibold max-w-[130px] inline-block align-bottom">{file.name}</span></li>
                 <li>Mime: <span className="text-[#171717] font-semibold">{file.type}</span></li>
-                {dimensions && (
-                  <li>Original: <span className="text-[#171717] font-semibold">{dimensions.width} x {dimensions.height} px</span></li>
+                {originalDimensions && (
+                  <li>Original: <span className="text-[#171717] font-semibold">{originalDimensions.width} x {originalDimensions.height} px</span></li>
                 )}
-                {dimensions && resolutionScale < 100 && (
-                  <li>Target: <span className="text-[#171717] font-semibold">{Math.max(1, Math.round(dimensions.width * (resolutionScale / 100)))} x {Math.max(1, Math.round(dimensions.height * (resolutionScale / 100)))} px ({resolutionScale}%)</span></li>
+                {outputDimensions && (
+                  <li>Output: <span className="text-[#171717] font-semibold">{outputDimensions.width} x {outputDimensions.height} px ({resolutionScale}%)</span></li>
                 )}
               </ul>
             </div>
@@ -531,8 +566,8 @@ export function CompressImage() {
                   <span className="mt-0.5 block font-mono font-bold text-text-primary">{completedBatchResults.length}/{batchResults.length}</span>
                 </div>
                 <div className="border-l border-brand-border pl-3">
-                  <span className="block text-[9px] uppercase font-bold text-text-muted">Output</span>
-                  <span className="mt-0.5 block font-mono font-bold text-text-primary">{formatBytes(batchOutputSize)}</span>
+                  <span className="block text-[9px] uppercase font-bold text-text-muted">Saved</span>
+                  <span className="mt-0.5 block font-mono font-bold text-text-primary">{formatBytes(batchSavedBytes)}</span>
                 </div>
               </div>
               <Button
@@ -560,6 +595,17 @@ export function CompressImage() {
               downloadLabel="Download optimized graphic"
               isProcessing={loading}
             >
+              {friendlyError && !loading && (
+                <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700" role="alert">
+                  <AlertCircle className="mt-0.5 h-4.5 w-4.5 shrink-0 text-red-600" />
+                  <div>
+                    <span className="font-bold text-red-800">{friendlyError.title}</span>
+                    <p className="mt-1">{friendlyError.message}</p>
+                    <p className="mt-1 font-semibold">{friendlyError.suggestion}</p>
+                  </div>
+                </div>
+              )}
+
               {warningText && !loading && (
                 <div className="flex items-start gap-2 bg-[#FFF3D6] text-[#E07A2F] p-3.5 rounded-xl border border-[#F59E0B]/20 text-xs leading-relaxed">
                   <AlertCircle className="h-4.5 w-4.5 shrink-0 text-[#F59E0B] mt-0.5" />
@@ -580,6 +626,28 @@ export function CompressImage() {
                 </div>
               )}
 
+              <div className="grid grid-cols-2 gap-3 rounded-xl border border-brand-border bg-brand-secondary p-4 text-xs sm:grid-cols-4">
+                <div>
+                  <span className="block text-[9px] uppercase font-bold tracking-wider text-text-muted">Original</span>
+                  <span className="mt-1 block font-mono font-bold text-text-primary">{file ? formatBytes(file.size) : "-"}</span>
+                </div>
+                <div className="border-l border-brand-border pl-3">
+                  <span className="block text-[9px] uppercase font-bold tracking-wider text-text-muted">Output</span>
+                  <span className="mt-1 block font-mono font-bold text-text-primary">{compressedSize ? formatBytes(compressedSize) : "-"}</span>
+                </div>
+                <div className="border-l border-brand-border pl-3">
+                  <span className="block text-[9px] uppercase font-bold tracking-wider text-text-muted">Reduction</span>
+                  <span className="mt-1 flex items-center gap-1 font-mono font-bold text-text-primary">
+                    <Gauge className="h-3.5 w-3.5 text-accent-secondary" />
+                    {reductionPercent === null ? "-" : `${reductionPercent}%`}
+                  </span>
+                </div>
+                <div className="border-l border-brand-border pl-3">
+                  <span className="block text-[9px] uppercase font-bold tracking-wider text-text-muted">Format</span>
+                  <span className="mt-1 block font-mono font-bold text-text-primary">{activeOutputFormat}</span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
                 {/* Before pane */}
@@ -593,6 +661,10 @@ export function CompressImage() {
                         className="max-h-full max-w-full object-contain pointer-events-none"
                       />
                     )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px] text-text-secondary">
+                    <span>Size: <strong className="font-mono text-text-primary">{file ? formatBytes(file.size) : "-"}</strong></span>
+                    <span>Dims: <strong className="font-mono text-text-primary">{originalDimensions ? `${originalDimensions.width}x${originalDimensions.height}` : "-"}</strong></span>
                   </div>
                 </div>
 
@@ -616,6 +688,10 @@ export function CompressImage() {
                         />
                       )
                     )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px] text-text-secondary">
+                    <span>Size: <strong className="font-mono text-text-primary">{compressedSize ? formatBytes(compressedSize) : "-"}</strong></span>
+                    <span>Dims: <strong className="font-mono text-text-primary">{outputDimensions ? `${outputDimensions.width}x${outputDimensions.height}` : "-"}</strong></span>
                   </div>
                 </div>
 
@@ -659,7 +735,7 @@ export function CompressImage() {
                         {item.status === "completed" && (
                           <a
                             href={item.outputUrl}
-                            download={`${item.fileName.replace(/\.[^.]+$/, "") || "image"}_optimized${item.extension}`}
+                            download={buildKurioFileName(item.fileName, "compressed", item.extension)}
                             className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-3 text-xs font-semibold text-text-primary transition-colors hover:bg-brand-bg"
                           >
                             <Download className="h-3.5 w-3.5" />
@@ -673,7 +749,11 @@ export function CompressImage() {
               )}
             </OutputPanel>
           ) : (
-            <PreviewPanel title="Optimized output preview container" />
+            <PreviewPanel
+              title="Optimized output preview"
+              emptyTitle="No image selected"
+              emptyDescription="Upload one or more JPG, PNG, or WebP files to compare original and optimized output before downloading."
+            />
           )}
         </div>
 

@@ -25,9 +25,12 @@ export function UploadDropZone({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorTitle, setErrorTitle] = useState<string>("Incompatible asset");
+  const [errorSuggestion, setErrorSuggestion] = useState<string | null>(null);
 
   const validateFile = (file: File) => {
     setErrorMessage(null);
+    setErrorSuggestion(null);
 
     // 1. Verify Extension
     const fileExt = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
@@ -39,14 +42,18 @@ export function UploadDropZone({
     });
 
     if (!isAccepted) {
+      setErrorTitle("Unsupported file format");
       setErrorMessage(`Invalid file format. Supported types: ${acceptedExtensions.join(", ")}`);
+      setErrorSuggestion("Export or convert the source file to one of the supported formats, then upload it again.");
       return false;
     }
 
     // 2. Verify Size
     const maxByteSize = maxSizeMB * 1024 * 1024;
     if (file.size > maxByteSize) {
+      setErrorTitle("File is too large");
       setErrorMessage(`File exceeds the ${maxSizeMB}MB maximum limit.`);
+      setErrorSuggestion("Use a smaller file, split the document, or reduce image dimensions before uploading.");
       return false;
     }
 
@@ -143,11 +150,14 @@ export function UploadDropZone({
 
       {/* Validation Warning Callout */}
       {errorMessage && (
-        <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-xs text-red-700 border border-red-200">
+        <div className="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-xs text-red-700 border border-red-200" role="alert">
           <AlertCircle className="h-4.5 w-4.5 shrink-0 text-red-600 mt-0.5" />
           <div className="min-w-0">
-            <span className="font-semibold block">Incompatible asset parameters</span>
+            <span className="font-semibold block">{errorTitle}</span>
             <span className="text-[11px] leading-relaxed block mt-0.5">{errorMessage}</span>
+            {errorSuggestion && (
+              <span className="text-[11px] leading-relaxed block mt-1 font-semibold">{errorSuggestion}</span>
+            )}
           </div>
         </div>
       )}

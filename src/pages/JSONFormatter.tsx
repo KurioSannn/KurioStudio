@@ -66,6 +66,10 @@ export function JSONFormatter() {
           fileSize: text.length,
           outputType: "JSON Cleaned",
           status: "completed",
+          metadata: {
+            indent: spacingValue,
+            characters: formatted.length,
+          },
         });
         trackEvent("conversion_success", { toolId: "json-formatter", fileType: "application/json", fileSize: text.length });
       }

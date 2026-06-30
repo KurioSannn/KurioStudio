@@ -8,7 +8,8 @@ import { Button } from "@/src/components/ui/button";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
 import { takePendingToolFile } from "@/src/lib/workspace/pending-file";
 import { trackEvent } from "@/src/lib/analytics";
-import { formatBytes } from "@/src/lib/utils";
+import { buildKurioFileName, formatBytes, getFileBaseName } from "@/src/lib/utils";
+import { getFriendlyToolError, type FriendlyToolError } from "@/src/lib/tool-errors";
 import { Download, FileCheck, Layers, Info, Trash2, AlertCircle } from "lucide-react";
 import JSZip from "jszip";
 
@@ -29,6 +30,7 @@ export function PDFToPNG() {
   const [scale, setScale] = useState<number>(2.0); // Default high resolution scale factor (2x HD)
   const [exportProgress, setExportProgress] = useState<number>(0);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [friendlyError, setFriendlyError] = useState<FriendlyToolError | null>(null);
   const [successText, setSuccessText] = useState<string | null>(null);
 
   // Helper to load pdfjs dynamically with absolute stability
@@ -89,6 +91,7 @@ export function PDFToPNG() {
     setPages([]);
     setExportProgress(0);
     setErrorText(null);
+    setFriendlyError(null);
     setSuccessText(null);
     setLoading(true);
     trackEvent("file_processed", { toolId: "pdf-to-png", fileType: selectedFile.type || ".pdf", fileSize: selectedFile.size });
@@ -114,19 +117,25 @@ export function PDFToPNG() {
           await loadPagePreviews(pdf, scale, selectedFile);
         } catch (err: any) {
           console.error(err);
-          setErrorText(err.message || "Invalid or corrupt PDF document.");
+          const friendly = getFriendlyToolError(err, "Invalid or corrupt PDF document.");
+          setFriendlyError(friendly);
+          setErrorText(friendly.message);
           trackEvent("conversion_failed", { toolId: "pdf-to-png", message: err.message || "Invalid PDF document" });
           setLoading(false);
         }
       };
       reader.onerror = () => {
-        setErrorText("Could not read uploaded PDF file bytes.");
+        const friendly = getFriendlyToolError(new Error("Could not read uploaded PDF file bytes."), "Could not read uploaded PDF file bytes.");
+        setFriendlyError(friendly);
+        setErrorText(friendly.message);
         trackEvent("conversion_failed", { toolId: "pdf-to-png", message: "FileReader failed" });
         setLoading(false);
       };
       reader.readAsArrayBuffer(selectedFile);
     } catch (err: any) {
-      setErrorText(err.message || "Failed to initialize PDF engine.");
+      const friendly = getFriendlyToolError(err, "Failed to initialize PDF engine.");
+      setFriendlyError(friendly);
+      setErrorText(friendly.message);
       trackEvent("conversion_failed", { toolId: "pdf-to-png", message: err.message || "PDF engine failed" });
       setLoading(false);
     }
@@ -148,6 +157,7 @@ export function PDFToPNG() {
   const loadPagePreviews = async (pdf: any, activeScale: number, currentFile: File) => {
     setLoading(true);
     setErrorText(null);
+    setFriendlyError(null);
     
     // Revoke previous URLs to free up memory before rendering anew
     pages.forEach((p) => {
@@ -240,6 +250,11 @@ export function PDFToPNG() {
         fileSize: currentFile.size,
         outputType: "PNG Zip",
         status: "completed",
+        metadata: {
+          pages: numPages,
+          scale: activeScale,
+          output: "png",
+        },
       });
       trackEvent("conversion_success", {
         toolId: "pdf-to-png",
@@ -249,7 +264,9 @@ export function PDFToPNG() {
       });
     } catch (e: any) {
       console.error("Renderer issue:", e);
-      setErrorText(`Rendering failed on canvas pipeline: ${e.message || e}`);
+      const friendly = getFriendlyToolError(e, "Rendering failed on canvas pipeline.");
+      setFriendlyError(friendly);
+      setErrorText(friendly.message);
       trackEvent("conversion_failed", { toolId: "pdf-to-png", message: e.message || String(e) });
     } finally {
       setLoading(false);
@@ -265,10 +282,9 @@ export function PDFToPNG() {
 
   const downloadSinglePage = (page: PDFPageItem) => {
     if (!file || !page.url) return;
-    const cleanPrefix = file.name.replace(/\.pdf$/i, "");
     const link = document.createElement("a");
     link.href = page.url;
-    link.download = `${cleanPrefix}_page_${page.number}.png`;
+    link.download = buildKurioFileName(file.name, `page_${page.number}`, ".png");
     link.click();
   };
 
@@ -278,25 +294,27 @@ export function PDFToPNG() {
     
     try {
       const zip = new JSZip();
-      const cleanPrefix = file.name.replace(/\.pdf$/i, "");
+      const cleanPrefix = getFileBaseName(file.name, "pdf");
       
       pages.forEach((page) => {
         // Feed direct raw binary blobs into JSZip for faster compression
-        zip.file(`${cleanPrefix}_page_${page.number}.png`, page.blob);
+        zip.file(`${cleanPrefix}_kurio_page_${page.number}.png`, page.blob);
       });
 
       const zipBlob = await zip.generateAsync({ type: "blob" });
       const link = document.createElement("a");
       const zipUrl = URL.createObjectURL(zipBlob);
       link.href = zipUrl;
-      link.download = `${cleanPrefix}_png_slides.zip`;
+      link.download = `${cleanPrefix}_kurio_pages.zip`;
       link.click();
       
       // Cleanup ZIP download URL dynamically
       setTimeout(() => URL.revokeObjectURL(zipUrl), 3000);
     } catch (e: any) {
       console.error("ZIP Assembly Error:", e);
-      setErrorText(`ZIP compilation failed on pipeline: ${e.message || e}`);
+      const friendly = getFriendlyToolError(e, "ZIP compilation failed on pipeline.");
+      setFriendlyError(friendly);
+      setErrorText(friendly.message);
       trackEvent("conversion_failed", { toolId: "pdf-to-png", message: e.message || String(e), phase: "zip" });
     } finally {
       setLoading(false);
@@ -312,6 +330,7 @@ export function PDFToPNG() {
     setPages([]);
     setExportProgress(0);
     setErrorText(null);
+    setFriendlyError(null);
     setSuccessText(null);
   };
 
@@ -399,11 +418,12 @@ export function PDFToPNG() {
               originalSize={file.size}
             >
               {errorText && (
-                <div className="flex items-start gap-2 bg-red-50 text-red-700 p-4 rounded-xl border border-red-200 text-xs">
+                <div className="flex items-start gap-2 bg-red-50 text-red-700 p-4 rounded-xl border border-red-200 text-xs" role="alert">
                   <AlertCircle className="h-4.5 w-4.5 shrink-0 text-red-500 mt-0.5" />
                   <div>
-                    <span className="font-bold">Conversion Error:</span>
-                    <p className="mt-1 font-mono">{errorText}</p>
+                    <span className="font-bold text-red-800">{friendlyError?.title || "Conversion error"}</span>
+                    <p className="mt-1">{errorText}</p>
+                    {friendlyError?.suggestion && <p className="mt-1 font-semibold">{friendlyError.suggestion}</p>}
                   </div>
                 </div>
               )}
@@ -472,7 +492,11 @@ export function PDFToPNG() {
               )}
             </OutputPanel>
           ) : (
-            <PreviewPanel title="Slide inspection viewport" />
+            <PreviewPanel
+              title="Slide inspection viewport"
+              emptyTitle="No PDF selected"
+              emptyDescription="Upload a PDF to render page previews, inspect dimensions, and download individual PNG pages or a ZIP."
+            />
           )}
         </div>
 

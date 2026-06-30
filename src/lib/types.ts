@@ -44,6 +44,7 @@ export interface WorkspaceItem {
   createdAt: string;
   resultUrl?: string; // local blob URL or base64 data for download
   pinned?: boolean;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 export interface GeminiAPIRequest {

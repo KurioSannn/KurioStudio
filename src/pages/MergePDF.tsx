@@ -303,6 +303,11 @@ export function MergePDF() {
         fileSize: totalInputSize,
         outputType: "PDF",
         status: "completed",
+        metadata: {
+          files: pdfs.length,
+          pages: totalPages,
+          outputSize: blob.size,
+        },
       });
       trackEvent("conversion_success", {
         toolId: "pdf-merge",

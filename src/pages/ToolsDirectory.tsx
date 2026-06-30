@@ -5,6 +5,21 @@ import { ToolCard } from "@/src/components/tools/tool-card";
 import { Input } from "@/src/components/ui/input";
 import { Search, Layers } from "lucide-react";
 
+const TOOL_SEARCH_ALIASES: Record<string, string[]> = {
+  "pdf-to-png": ["extract page", "split pdf", "pdf image", "pdf ke png", "convert pdf"],
+  "image-to-pdf": ["jpg pdf", "png pdf", "gambar ke pdf", "image pdf", "photo pdf"],
+  "pdf-merge": ["combine", "gabung", "join", "merge", "satukan pdf"],
+  "resize-pdf": ["a4", "letter", "legal", "ubah ukuran", "page size"],
+  "pdf-compressor": ["compress", "smaller", "reduce", "kecilkan", "kompres"],
+  "doc-to-md": ["markdown", "docx", "txt", "extract text"],
+  "compress-image": ["compress", "kecilkan gambar", "optimize", "jpg", "jpeg", "webp"],
+  "resize-image": ["resize", "crop", "social", "instagram", "tiktok", "thumbnail"],
+  "remove-bg": ["background", "remove background", "hapus background", "transparent"],
+  "lottie-preview": ["animation", "json animation", "preview json", "lottie"],
+  "lottie-to-mp4": ["video", "mp4", "render animation"],
+  "json-formatter": ["format json", "minify", "pretty print", "validate json", "schema"],
+};
+
 export function ToolsDirectory() {
   const { route, navigate } = useRoute();
   const [search, setSearch] = useState("");
@@ -23,9 +38,25 @@ export function ToolsDirectory() {
 
   // Filter lists based on query & selected segment
   const filteredTools = TOOLS_LIST.filter((tool) => {
+    const searchableText = [
+      tool.id,
+      tool.name,
+      tool.description,
+      tool.category,
+      tool.status,
+      tool.inputFormats.join(" "),
+      tool.outputFormats.join(" "),
+      ...(TOOL_SEARCH_ALIASES[tool.id] || []),
+    ]
+      .join(" ")
+      .toLowerCase();
     const matchesSearch =
-      tool.name.toLowerCase().includes(search.toLowerCase()) ||
-      tool.description.toLowerCase().includes(search.toLowerCase());
+      !search.trim() ||
+      search
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .every((part) => searchableText.includes(part));
     
     const matchesCategory = selectedCategory === "all" || tool.category === selectedCategory;
     
@@ -79,7 +110,7 @@ export function ToolsDirectory() {
         <div className="relative w-full md:w-80 order-1 md:order-2 shrink-0">
           <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-text-muted" />
           <Input
-            placeholder="Search programs..."
+            placeholder="Search by task or format..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"

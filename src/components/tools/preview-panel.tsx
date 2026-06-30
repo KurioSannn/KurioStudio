@@ -4,10 +4,18 @@ import { Eye } from "lucide-react";
 interface PreviewPanelProps {
   title?: string;
   imgUrl?: string | null;
+  emptyTitle?: string;
+  emptyDescription?: string;
   children?: React.ReactNode;
 }
 
-export function PreviewPanel({ title = "Canvas Preview", imgUrl, children }: PreviewPanelProps) {
+export function PreviewPanel({
+  title = "Canvas Preview",
+  imgUrl,
+  emptyTitle = "No preview yet",
+  emptyDescription = "Upload a supported file or generate an output to inspect it here before downloading.",
+  children,
+}: PreviewPanelProps) {
   return (
     <div className="rounded-2xl border border-brand-border bg-brand-surface p-5 space-y-4 shadow-xs">
       <div className="flex items-center gap-2 pb-3 border-b border-brand-soft-border">
@@ -29,7 +37,8 @@ export function PreviewPanel({ title = "Canvas Preview", imgUrl, children }: Pre
           <div className="w-full">{children}</div>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center text-text-muted text-xs">
-            <span>No active asset has been rendered inside this layout shell yet</span>
+            <span className="font-bold text-text-primary">{emptyTitle}</span>
+            <span className="mt-1 max-w-sm leading-relaxed">{emptyDescription}</span>
           </div>
         )}
       </div>

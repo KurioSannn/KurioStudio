@@ -4,7 +4,7 @@ import { detectFileTypeForTool, type DetectedFileStats } from "@/src/lib/tools/f
 import { formatBytes } from "@/src/lib/utils";
 import { Button } from "../ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card";
-import { FileUp, FileText, Image, Code2, AlertTriangle, ArrowRight, CheckCircle } from "lucide-react";
+import { FileUp, FileText, Image, Code2, AlertTriangle, ArrowRight, CheckCircle, Sparkles } from "lucide-react";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
 import { setPendingToolFile } from "@/src/lib/workspace/pending-file";
 
@@ -44,6 +44,10 @@ export function QuickDropZone() {
       fileSize: file.size,
       outputType: result.extension,
       status: "idle",
+      metadata: {
+        category: result.category,
+        suggestedActions: result.actions.length,
+      },
     });
   };
 
@@ -84,10 +88,10 @@ export function QuickDropZone() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const openRecommendedTool = () => {
-    if (!uploadedFile || !detection?.recommendedToolId) return;
-    setPendingToolFile(uploadedFile, detection.recommendedToolId, detection.slug);
-    navigate(detection.slug);
+  const openToolAction = (toolId: string, slug: DetectedFileStats["slug"]) => {
+    if (!uploadedFile) return;
+    setPendingToolFile(uploadedFile, toolId, slug);
+    navigate(slug);
   };
 
   return (
@@ -175,38 +179,59 @@ export function QuickDropZone() {
               {/* Tool Router Proposal Card */}
               <div className="rounded-xl border border-accent-primary/20 bg-accent-bg/20 p-5 space-y-4">
                 <div>
-                  <h5 className="text-xs font-semibold text-accent-secondary uppercase tracking-wider">
-                    Recommended Action
+                  <h5 className="flex items-center gap-1.5 text-xs font-semibold text-accent-secondary uppercase tracking-wider">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Recommended Actions
                   </h5>
                   <p className="text-sm text-text-primary font-bold mt-1">
-                    Process this {detection.extension.toUpperCase().replace(".", "")} file inside the{" "}
-                    <span className="text-accent-secondary underline">{detection.name}</span> module.
+                    Pick the exact workflow for this {detection.extension.toUpperCase().replace(".", "") || "file"}.
                   </p>
                 </div>
 
+                {detection.actions.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {detection.actions.map((action, index) => (
+                      <button
+                        key={action.id}
+                        type="button"
+                        onClick={() => openToolAction(action.id, action.slug)}
+                        className={`rounded-xl border p-3 text-left transition-colors ${
+                          index === 0
+                            ? "border-accent-primary bg-white text-text-primary hover:bg-accent-bg/40"
+                            : "border-brand-border bg-brand-surface text-text-secondary hover:bg-white hover:text-text-primary"
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2 text-xs font-bold">
+                          {action.label}
+                          <ArrowRight className="h-3.5 w-3.5 shrink-0" />
+                        </span>
+                        <span className="mt-1 block text-[10px] leading-normal text-text-secondary">
+                          {action.description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <Button
+                    variant="primary"
+                    onClick={() => navigate("/tools")}
+                    className="cursor-pointer gap-2 font-bold"
+                  >
+                    Browse full directory
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
+
                 <div className="flex items-center gap-3">
                   {detection.recommendedToolId ? (
-                    <Button
-                      variant="primary"
-                      onClick={openRecommendedTool}
-                      className="cursor-pointer gap-2 font-bold"
-                    >
-                      Open recommended tool
-                      <ArrowRight className="h-4 w-4" />
+                    <Button variant="secondary" onClick={resetDropZone}>
+                      Analyze another file
                     </Button>
                   ) : (
-                    <Button
-                      variant="primary"
-                      onClick={() => navigate("/tools")}
-                      className="cursor-pointer gap-2 font-bold"
-                    >
-                      Browse full directory
-                      <ArrowRight className="h-4 w-4" />
+                    <Button variant="secondary" onClick={resetDropZone}>
+                      Try another file
                     </Button>
                   )}
-                  <Button variant="secondary" onClick={resetDropZone}>
-                    Analyze another file
-                  </Button>
                 </div>
               </div>
 

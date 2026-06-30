@@ -9,7 +9,9 @@ import { Input } from "@/src/components/ui/input";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
 import { takePendingToolFile } from "@/src/lib/workspace/pending-file";
 import { trackEvent } from "@/src/lib/analytics";
-import { Trash2, CheckCircle, AlertCircle } from "lucide-react";
+import { buildKurioFileName, formatBytes } from "@/src/lib/utils";
+import { getFriendlyToolError, type FriendlyToolError } from "@/src/lib/tool-errors";
+import { Trash2, CheckCircle, AlertCircle, Gauge } from "lucide-react";
 
 interface PresetItem {
   id: string;
@@ -33,8 +35,11 @@ export function ResizeImage() {
   // Metric logs
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
   const [resizedUrl, setResizedUrl] = useState<string | null>(null);
+  const [outputSize, setOutputSize] = useState<number | null>(null);
+  const [originalDimensions, setOriginalDimensions] = useState<{ width: number; height: number } | null>(null);
   const [statusText, setStatusText] = useState<string | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
+  const [friendlyError, setFriendlyError] = useState<FriendlyToolError | null>(null);
 
   // Presets configurations
   const PRESETS: PresetItem[] = [
@@ -44,11 +49,19 @@ export function ResizeImage() {
     { id: "square-spec", label: "Standard 800x800", width: 800, height: 800, ratio: "1:1" },
   ];
 
+  const estimateDataUrlBytes = (dataUrl: string) => {
+    const base64 = dataUrl.split(",")[1] || "";
+    return Math.max(0, Math.round((base64.length * 3) / 4));
+  };
+
   const handleFileSelected = (selectedFile: File) => {
     setFile(selectedFile);
     setLoading(true);
     setStatusText(null);
     setErrorText(null);
+    setFriendlyError(null);
+    setOutputSize(null);
+    setOriginalDimensions(null);
     trackEvent("file_processed", { toolId: "resize-image", fileType: selectedFile.type, fileSize: selectedFile.size });
 
     const objUrl = URL.createObjectURL(selectedFile);
@@ -61,12 +74,15 @@ export function ResizeImage() {
       setWidth(img.naturalWidth);
       setHeight(img.naturalHeight);
       setAspectRatio(img.naturalWidth / img.naturalHeight);
+      setOriginalDimensions({ width: img.naturalWidth, height: img.naturalHeight });
       
       // Auto compile initial canvas preview
       processResize(img, img.naturalWidth, img.naturalHeight);
     };
     img.onerror = () => {
-      setErrorText("Failed to decode the selected image. Try another JPG, PNG, or WebP file.");
+      const friendly = getFriendlyToolError(new Error("Failed to decode the selected image."), "Image decode failed.");
+      setFriendlyError(friendly);
+      setErrorText(friendly.message);
       setLoading(false);
       trackEvent("conversion_failed", { toolId: "resize-image", message: "Image decode failed" });
     };
@@ -84,6 +100,14 @@ export function ResizeImage() {
   ) => {
     setLoading(true);
     try {
+      if (targetWidth <= 0 || targetHeight <= 0) {
+        throw new Error("Invalid canvas dimensions.");
+      }
+
+      if (targetWidth * targetHeight > 80000000) {
+        throw new Error("Canvas memory limit reached for the selected dimensions.");
+      }
+
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
@@ -95,8 +119,10 @@ export function ResizeImage() {
 
       const rUrl = canvas.toDataURL(file?.type || "image/png");
       setResizedUrl(rUrl);
+      setOutputSize(estimateDataUrlBytes(rUrl));
       setStatusText(`Rendered ${targetWidth} x ${targetHeight}px output successfully.`);
       setErrorText(null);
+      setFriendlyError(null);
       
       // Log workspace history record
       addToWorkspaceHistory({
@@ -106,6 +132,12 @@ export function ResizeImage() {
         fileSize: file?.size || 0,
         outputType: "PNG",
         status: "completed",
+        metadata: {
+          width: targetWidth,
+          height: targetHeight,
+          lockRatio,
+          format: file?.type || "image/png",
+        },
       });
       trackEvent("conversion_success", {
         toolId: "resize-image",
@@ -116,7 +148,9 @@ export function ResizeImage() {
       });
     } catch (e) {
       console.error(e);
-      setErrorText("Failed to render canvas dimensions.");
+      const friendly = getFriendlyToolError(e, "Failed to render canvas dimensions.");
+      setFriendlyError(friendly);
+      setErrorText(friendly.message);
       trackEvent("conversion_failed", { toolId: "resize-image", message: e instanceof Error ? e.message : String(e) });
     } finally {
       setLoading(false);
@@ -175,7 +209,7 @@ export function ResizeImage() {
     
     const link = document.createElement("a");
     link.href = resizedUrl;
-    link.download = `${tokenName}_resized_${width}x${height}${ext}`;
+    link.download = buildKurioFileName(tokenName || file.name, `resized_${width}x${height}`, ext);
     link.click();
   };
 
@@ -184,10 +218,17 @@ export function ResizeImage() {
     setImgElement(null);
     setOriginalUrl(null);
     setResizedUrl(null);
+    setOutputSize(null);
+    setOriginalDimensions(null);
     setLockRatio(true);
     setStatusText(null);
     setErrorText(null);
+    setFriendlyError(null);
   };
+
+  const sizeDeltaPercent =
+    file && outputSize !== null && file.size > 0 ? Math.round(((file.size - outputSize) / file.size) * 100) : null;
+  const outputFormat = file?.type ? file.type.replace("image/", "").toUpperCase() : "-";
 
   return (
     <ToolPageShell toolId="resize-image">
@@ -285,9 +326,13 @@ export function ResizeImage() {
               isProcessing={loading}
             >
               {errorText && (
-                <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs text-red-700">
+                <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-xs text-red-700" role="alert">
                   <AlertCircle className="mt-0.5 h-4.5 w-4.5 shrink-0 text-red-600" />
-                  <span>{errorText}</span>
+                  <div>
+                    <span className="font-bold text-red-800">{friendlyError?.title || "Resize failed"}</span>
+                    <p className="mt-1">{errorText}</p>
+                    {friendlyError?.suggestion && <p className="mt-1 font-semibold">{friendlyError.suggestion}</p>}
+                  </div>
                 </div>
               )}
               {statusText && !loading && !errorText && (
@@ -296,23 +341,79 @@ export function ResizeImage() {
                   <span>{statusText}</span>
                 </div>
               )}
-              <div className="rounded-xl border border-brand-border bg-brand-secondary p-5 flex items-center justify-center relative min-h-[350px]">
-                {loading ? (
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent-secondary border-t-transparent" />
-                ) : (
-                  resizedUrl && (
-                    <img
-                      src={resizedUrl}
-                      alt="Current scaled preview"
-                      style={{ maxHeight: "350px", maxWidth: "100%" }}
-                      className="object-contain rounded-lg shadow-xs"
-                    />
-                  )
-                )}
+              <div className="grid grid-cols-2 gap-3 rounded-xl border border-brand-border bg-brand-secondary p-4 text-xs sm:grid-cols-4">
+                <div>
+                  <span className="block text-[9px] uppercase font-bold tracking-wider text-text-muted">Original</span>
+                  <span className="mt-1 block font-mono font-bold text-text-primary">{file ? formatBytes(file.size) : "-"}</span>
+                </div>
+                <div className="border-l border-brand-border pl-3">
+                  <span className="block text-[9px] uppercase font-bold tracking-wider text-text-muted">Output</span>
+                  <span className="mt-1 block font-mono font-bold text-text-primary">{outputSize !== null ? formatBytes(outputSize) : "-"}</span>
+                </div>
+                <div className="border-l border-brand-border pl-3">
+                  <span className="block text-[9px] uppercase font-bold tracking-wider text-text-muted">Size delta</span>
+                  <span className="mt-1 flex items-center gap-1 font-mono font-bold text-text-primary">
+                    <Gauge className="h-3.5 w-3.5 text-accent-secondary" />
+                    {sizeDeltaPercent === null ? "-" : `${sizeDeltaPercent}%`}
+                  </span>
+                </div>
+                <div className="border-l border-brand-border pl-3">
+                  <span className="block text-[9px] uppercase font-bold tracking-wider text-text-muted">Format</span>
+                  <span className="mt-1 block font-mono font-bold text-text-primary">{outputFormat}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-text-muted">Original frame</span>
+                  <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-brand-border bg-white p-3">
+                    {originalUrl && (
+                      <img
+                        src={originalUrl}
+                        alt="Original image preview"
+                        className="max-h-full max-w-full rounded-lg object-contain"
+                      />
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px] text-text-secondary">
+                    <span>Size: <strong className="font-mono text-text-primary">{file ? formatBytes(file.size) : "-"}</strong></span>
+                    <span>Dims: <strong className="font-mono text-text-primary">{originalDimensions ? `${originalDimensions.width}x${originalDimensions.height}` : "-"}</strong></span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-accent-secondary">
+                    <CheckCircle className="h-3.5 w-3.5" />
+                    Resized output
+                  </span>
+                  <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-brand-border bg-white p-3">
+                    {loading ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/75">
+                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent-secondary border-t-transparent" />
+                      </div>
+                    ) : (
+                      resizedUrl && (
+                        <img
+                          src={resizedUrl}
+                          alt="Current scaled preview"
+                          className="max-h-full max-w-full rounded-lg object-contain shadow-xs"
+                        />
+                      )
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px] text-text-secondary">
+                    <span>Size: <strong className="font-mono text-text-primary">{outputSize !== null ? formatBytes(outputSize) : "-"}</strong></span>
+                    <span>Dims: <strong className="font-mono text-text-primary">{width && height ? `${width}x${height}` : "-"}</strong></span>
+                  </div>
+                </div>
               </div>
             </OutputPanel>
           ) : (
-            <PreviewPanel title="Dimension visualizer window" />
+            <PreviewPanel
+              title="Dimension visualizer"
+              emptyTitle="No image selected"
+              emptyDescription="Upload an image to compare original dimensions with the resized output before exporting."
+            />
           )}
         </div>
 

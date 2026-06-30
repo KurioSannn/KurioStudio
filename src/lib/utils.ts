@@ -13,3 +13,21 @@ export function formatBytes(bytes: number, decimals = 2) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 }
+
+export function getFileBaseName(fileName: string, fallback = "kurio-export") {
+  const withoutExtension = fileName.replace(/\.[^.]+$/, "");
+  const cleaned = withoutExtension
+    .trim()
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-.]+|[-.]+$/g, "")
+    .toLowerCase();
+
+  return cleaned || fallback;
+}
+
+export function buildKurioFileName(fileName: string, suffix: string, extension: string) {
+  const normalizedExtension = extension.startsWith(".") ? extension : `.${extension}`;
+  return `${getFileBaseName(fileName)}_kurio_${suffix}${normalizedExtension}`;
+}

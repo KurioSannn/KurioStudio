@@ -18,6 +18,7 @@ import {
   Search,
   Pin,
   PinOff,
+  Download,
   X,
   CheckCircle2,
   Clock3,
@@ -54,6 +55,21 @@ export function WorkspacePage() {
     setHistory(loadWorkspaceHistory());
   };
 
+  const exportHistory = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      app: "Kurio Studio",
+      records: history,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `kurio-workspace-history-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  };
+
   const getToolRoute = (toolId: string) => {
     if (toolId === "pdf-to-png") return "/tools/pdf-to-png";
     if (toolId === "image-to-pdf") return "/tools/image-to-pdf";
@@ -76,7 +92,12 @@ export function WorkspacePage() {
           !query ||
           record.fileName.toLowerCase().includes(query) ||
           record.toolName.toLowerCase().includes(query) ||
-          record.outputType.toLowerCase().includes(query);
+          record.outputType.toLowerCase().includes(query) ||
+          Object.entries(record.metadata || {})
+            .map(([key, value]) => `${key} ${value}`)
+            .join(" ")
+            .toLowerCase()
+            .includes(query);
         const matchesStatus = statusFilter === "all" || record.status === statusFilter;
         return matchesSearch && matchesStatus;
       })
@@ -128,15 +149,26 @@ export function WorkspacePage() {
         </div>
 
         {history.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setConfirmWipe(true)}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200"
-          >
-            <Trash2 className="h-4 w-4" />
-            Wipe Cache
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={exportHistory}
+              className="gap-2 text-xs"
+            >
+              <Download className="h-4 w-4" />
+              Export JSON
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setConfirmWipe(true)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200"
+            >
+              <Trash2 className="h-4 w-4" />
+              Wipe Cache
+            </Button>
+          </div>
         )}
       </div>
 
@@ -251,6 +283,19 @@ export function WorkspacePage() {
                     <span className="text-brand-border">&#8226;</span>
                     <span className="font-mono text-text-muted">{new Date(record.createdAt).toLocaleString()}</span>
                   </div>
+
+                  {record.metadata && Object.keys(record.metadata).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {Object.entries(record.metadata).slice(0, 5).map(([key, value]) => (
+                        <span
+                          key={key}
+                          className="rounded-md border border-brand-border bg-brand-secondary px-2 py-0.5 text-[9px] font-semibold text-text-secondary"
+                        >
+                          {key}: <span className="font-mono text-text-primary">{String(value)}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Launch matching module */}
@@ -270,7 +315,7 @@ export function WorkspacePage() {
                     onClick={() => navigate(getToolRoute(record.toolId))}
                     className="flex items-center gap-1 text-xs py-4.5"
                   >
-                    Open tool
+                    Open again
                     <ExternalLink className="h-3 w-3" />
                   </Button>
                   <Button
