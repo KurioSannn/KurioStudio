@@ -107,6 +107,13 @@ export function UploadDropZone({
     fileInputRef.current?.click();
   };
 
+  const handleKeyboardUpload = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      triggerClick();
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div
@@ -115,6 +122,10 @@ export function UploadDropZone({
         onDragLeave={handleDrag}
         onDrop={handleDrop}
         onClick={triggerClick}
+        onKeyDown={handleKeyboardUpload}
+        role="button"
+        tabIndex={0}
+        aria-label={`${title}. ${subtitle}`}
         className={`group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 text-center cursor-pointer transition-all duration-300 ${
           dragActive
             ? "border-accent-primary bg-accent-bg/10"

@@ -44,8 +44,12 @@ export function ResizeImage() {
   // Presets configurations
   const PRESETS: PresetItem[] = [
     { id: "instagram-1-1", label: "Instagram 1:1 post", width: 1080, height: 1080, ratio: "1:1" },
+    { id: "instagram-story", label: "Instagram Story", width: 1080, height: 1920, ratio: "9:16" },
     { id: "tiktok-vertical", label: "TikTok cover page", width: 1080, height: 1920, ratio: "9:16" },
     { id: "youtube-thumb", label: "YouTube thumbnail", width: 1280, height: 720, ratio: "16:9" },
+    { id: "linkedin-banner", label: "LinkedIn banner", width: 1584, height: 396, ratio: "4:1" },
+    { id: "x-header", label: "X / Twitter header", width: 1500, height: 500, ratio: "3:1" },
+    { id: "facebook-cover", label: "Facebook cover", width: 1640, height: 624, ratio: "2.63:1" },
     { id: "square-spec", label: "Standard 800x800", width: 800, height: 800, ratio: "1:1" },
   ];
 
@@ -292,6 +296,8 @@ export function ResizeImage() {
                       type="button"
                       onClick={() => applyPresetValue(p)}
                       disabled={loading}
+                      aria-label={`Apply ${p.label} preset, ${p.width} by ${p.height} pixels`}
+                      aria-pressed={width === p.width && height === p.height && !lockRatio}
                       style={{ contentVisibility: "auto" }}
                       className="flex items-center justify-between p-3 border border-brand-border bg-brand-surface rounded-xl text-left text-xs text-text-primary hover:bg-brand-bg hover:border-accent-primary font-semibold transition-all cursor-pointer shadow-xs select-none"
                     >
@@ -388,7 +394,7 @@ export function ResizeImage() {
                   </span>
                   <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-brand-border bg-white p-3">
                     {loading ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/75">
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/75" role="status" aria-label="Generating resized preview">
                         <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent-secondary border-t-transparent" />
                       </div>
                     ) : (

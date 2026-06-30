@@ -81,6 +81,13 @@ export function QuickDropZone() {
     fileInputRef.current?.click();
   };
 
+  const handleKeyboardUpload = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      triggerUpload();
+    }
+  };
+
   const resetDropZone = () => {
     setUploadedFile(null);
     setDetection(null);
@@ -106,6 +113,10 @@ export function QuickDropZone() {
               onDragLeave={handleDrag}
               onDrop={handleDrop}
               onClick={triggerUpload}
+              onKeyDown={handleKeyboardUpload}
+              role="button"
+              tabIndex={0}
+              aria-label="Drop or browse a file for Kurio to recommend matching tools"
               className={`group relative flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#D8D1C7] bg-[#FAFAF7] p-8 md:p-12 text-center cursor-pointer transition-all duration-300 hover:border-[#F59E0B] hover:bg-white ${
                 dragActive ? "bg-[#FFF3D6] border-[#F59E0B] scale-[1.01]" : ""
               }`}

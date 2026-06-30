@@ -439,7 +439,7 @@ export function PDFToPNG() {
               )}
 
               {loading && pages.length === 0 ? (
-                <div className="text-center py-20 space-y-4">
+                <div className="text-center py-20 space-y-4" role="status" aria-live="polite">
                   <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#F59E0B] border-t-transparent" />
                   <span className="text-xs text-[#6B6258] block">
                     Initializing PDFJS engine and converting full-vector page structures... {exportProgress}%
@@ -448,7 +448,7 @@ export function PDFToPNG() {
               ) : (
                 <div className="space-y-4">
                   {loading && pages.length > 0 && (
-                    <div className="flex items-center gap-3 bg-[#FFF3D6] border border-[#F59E0B]/20 p-3 rounded-xl text-xs text-[#E07A2F]">
+                    <div className="flex items-center gap-3 bg-[#FFF3D6] border border-[#F59E0B]/20 p-3 rounded-xl text-xs text-[#E07A2F]" role="status" aria-live="polite">
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#F59E0B] border-t-transparent" />
                       <span>Rendering sequence in progress... page {pages.length + 1} of {pdfDoc?.numPages || "?"} ({exportProgress}%)</span>
                     </div>
@@ -481,6 +481,7 @@ export function PDFToPNG() {
                             size="icon"
                             onClick={() => downloadSinglePage(item)}
                             className="h-7 w-7 rounded-lg text-[#6B6258] hover:text-[#F59E0B]"
+                            aria-label={`Download ${item.label} as PNG`}
                           >
                             <Download className="h-3.5 w-3.5" />
                           </Button>

@@ -676,7 +676,7 @@ export function CompressImage() {
                   </span>
                   <div className="rounded-xl border border-[#E7E2D8] bg-white aspect-square overflow-hidden flex items-center justify-center p-3 relative">
                     {loading ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/75">
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/75" role="status" aria-label="Generating compressed preview">
                         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#F59E0B] border-t-transparent" />
                       </div>
                     ) : (

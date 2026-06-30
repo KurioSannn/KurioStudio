@@ -7,6 +7,7 @@ import { PreviewPanel } from "@/src/components/tools/preview-panel";
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { addToWorkspaceHistory } from "@/src/lib/workspace/history";
+import { takePendingToolFile } from "@/src/lib/workspace/pending-file";
 import { trackEvent } from "@/src/lib/analytics";
 import { formatBytes } from "@/src/lib/utils";
 import {
@@ -19,7 +20,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-type PagePresetId = "a4" | "letter" | "legal" | "a3" | "a5" | "custom";
+type PagePresetId = "a4" | "letter" | "legal" | "a3" | "a5" | "slide-16-9" | "custom";
 type Unit = "mm" | "inch" | "pt";
 type Orientation = "auto" | "portrait" | "landscape";
 type ScaleMode = "fit" | "fill" | "original";
@@ -43,6 +44,7 @@ const PAGE_SIZE_PRESETS: PageSizePreset[] = [
   { id: "legal", label: "Legal", width: 612, height: 1008 },
   { id: "a3", label: "A3", width: 841.89, height: 1190.55 },
   { id: "a5", label: "A5", width: 419.53, height: 595.28 },
+  { id: "slide-16-9", label: "Slide 16:9", width: 960, height: 540 },
 ];
 
 const UNIT_LABELS: Record<Unit, string> = {
@@ -203,6 +205,11 @@ export function ResizePDF() {
     return () => {
       if (outputUrlRef.current) URL.revokeObjectURL(outputUrlRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    const pending = takePendingToolFile("resize-pdf");
+    if (pending) handleFileSelected(pending.file);
   }, []);
 
   const selectedSize = getPresetSize(presetId, customWidth, customHeight, customUnit);
@@ -367,6 +374,14 @@ export function ResizePDF() {
         fileSize: pdfInfo.file.size,
         outputType: "PDF",
         status: "completed",
+        metadata: {
+          pages: sourcePages.length,
+          preset: selectedSize.label,
+          orientation,
+          scaleMode,
+          margin: marginPreset,
+          outputSize: blob.size,
+        },
       });
       trackEvent("conversion_success", {
         toolId: "resize-pdf",
@@ -462,9 +477,12 @@ export function ResizePDF() {
                     type="button"
                     onClick={() => {
                       setPresetId(preset.id);
+                      if (preset.id === "slide-16-9") setOrientation("landscape");
                       resetOutput();
                     }}
                     disabled={loading}
+                    aria-label={`Use ${preset.label} page size preset`}
+                    aria-pressed={presetId === preset.id}
                     className={`rounded-lg border px-3 py-2 text-left text-xs font-bold transition-colors ${
                       presetId === preset.id
                         ? "border-accent-primary bg-accent-bg text-accent-secondary"
@@ -547,6 +565,8 @@ export function ResizePDF() {
                       resetOutput();
                     }}
                     disabled={loading}
+                    aria-label={`Set PDF orientation to ${item}`}
+                    aria-pressed={orientation === item}
                     className={`rounded-lg border px-2 py-2 text-xs font-bold capitalize transition-colors ${
                       orientation === item
                         ? "border-accent-primary bg-accent-bg text-accent-secondary"
@@ -575,6 +595,8 @@ export function ResizePDF() {
                       resetOutput();
                     }}
                     disabled={loading}
+                    aria-label={`Set content scaling to ${item.label}`}
+                    aria-pressed={scaleMode === item.id}
                     className={`rounded-lg border px-3 py-2 text-left text-xs font-bold transition-colors ${
                       scaleMode === item.id
                         ? "border-accent-primary bg-accent-bg text-accent-secondary"
@@ -599,6 +621,8 @@ export function ResizePDF() {
                       resetOutput();
                     }}
                     disabled={loading}
+                    aria-label={`Set PDF margin to ${MARGIN_LABELS[item]}`}
+                    aria-pressed={marginPreset === item}
                     className={`rounded-lg border px-3 py-2 text-left text-xs font-bold transition-colors ${
                       marginPreset === item
                         ? "border-accent-primary bg-accent-bg text-accent-secondary"
@@ -679,7 +703,7 @@ export function ResizePDF() {
           )}
 
           {progressText && (
-            <div className="rounded-xl border border-brand-border bg-brand-secondary p-4 text-xs text-text-secondary">
+            <div className="rounded-xl border border-brand-border bg-brand-secondary p-4 text-xs text-text-secondary" role="status" aria-live="polite">
               <div className="flex items-center gap-3">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent-secondary border-t-transparent" />
                 <span className="font-bold text-text-primary">{progressText}</span>
