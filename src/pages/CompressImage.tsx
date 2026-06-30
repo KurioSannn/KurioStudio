@@ -104,73 +104,122 @@ export function CompressImage() {
     activeScale: number
   ): Promise<CompressionResult> => {
     return new Promise((resolve, reject) => {
-      const img = new Image();
-      const sourceUrl = URL.createObjectURL(sourceFile);
-      img.src = sourceUrl;
+      const exportMime = getExportMime(sourceFile, activeFormat);
+      const isPNG = exportMime === "image/png";
 
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        const scaleFactor = activeScale / 100;
-        const targetWidth = Math.max(1, Math.round(img.naturalWidth * scaleFactor));
-        const targetHeight = Math.max(1, Math.round(img.naturalHeight * scaleFactor));
+      // Helper to process the final blob result
+      const handleBlobResult = (blob: Blob, origW: number, origH: number, targetW: number, targetH: number) => {
+        const outputUrl = URL.createObjectURL(blob);
+        let nextWarning: string | null = null;
+        let nextSuccess: string | null = null;
 
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
-
-        if (ctx) {
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+        if (blob.size >= sourceFile.size) {
+          nextWarning =
+            isPNG && activeScale === 100
+              ? "PNG is lossless. Try lowering Resolution Scale, or convert to WebP/JPG for larger savings."
+              : "The output is not smaller than the original. Try lower quality, lower scale, or WebP format.";
+        } else {
+          const saved = Math.round(((sourceFile.size - blob.size) / sourceFile.size) * 100);
+          nextSuccess = `Optimized image successfully. Estimated size reduction: ${saved}%.`;
         }
 
-        const exportMime = getExportMime(sourceFile, activeFormat);
-        const isPNG = exportMime === "image/png";
-        const qualityFactor = activeQuality / 100;
+        resolve({
+          blob,
+          url: outputUrl,
+          mime: exportMime,
+          width: targetW,
+          height: targetH,
+          originalWidth: origW,
+          originalHeight: origH,
+          warningText: nextWarning,
+          successText: nextSuccess,
+        });
+      };
 
-        canvas.toBlob(
-          (blob) => {
-            URL.revokeObjectURL(sourceUrl);
-            if (!blob) {
-              reject(new Error("The browser could not create an optimized image blob."));
+      // Main Thread Fallback for older browsers (e.g., Safari < 16.4)
+      const runMainThreadCompression = () => {
+        const img = new Image();
+        const sourceUrl = URL.createObjectURL(sourceFile);
+        img.src = sourceUrl;
+
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          const scaleFactor = activeScale / 100;
+          const targetWidth = Math.max(1, Math.round(img.naturalWidth * scaleFactor));
+          const targetHeight = Math.max(1, Math.round(img.naturalHeight * scaleFactor));
+
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+
+          if (ctx) {
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+          }
+
+          const qualityFactor = activeQuality / 100;
+
+          canvas.toBlob(
+            (blob) => {
+              URL.revokeObjectURL(sourceUrl);
+              if (!blob) {
+                reject(new Error("The browser could not create an optimized image blob."));
+                return;
+              }
+              handleBlobResult(blob, img.naturalWidth, img.naturalHeight, targetWidth, targetHeight);
+            },
+            exportMime,
+            isPNG ? undefined : qualityFactor
+          );
+        };
+
+        img.onerror = () => {
+          URL.revokeObjectURL(sourceUrl);
+          reject(new Error("Failed to correctly decode graphic reference."));
+        };
+      };
+
+      // Primary Logic: Use Web Worker to avoid freezing the UI thread
+      if (window.Worker && "OffscreenCanvas" in window) {
+        try {
+          const worker = new Worker(new URL("../lib/workers/image-compressor.worker.ts", import.meta.url), { type: "module" });
+          const jobId = Math.random().toString(36).slice(2);
+          
+          worker.onmessage = (e) => {
+            if (e.data.id !== jobId) return;
+            worker.terminate();
+            
+            if (!e.data.success) {
+              console.warn("Worker compression failed, falling back to main thread:", e.data.error);
+              runMainThreadCompression();
               return;
             }
 
-            const outputUrl = URL.createObjectURL(blob);
-            let nextWarning: string | null = null;
-            let nextSuccess: string | null = null;
+            handleBlobResult(e.data.blob, e.data.originalWidth, e.data.originalHeight, e.data.width, e.data.height);
+          };
 
-            if (blob.size >= sourceFile.size) {
-              nextWarning =
-                isPNG && activeScale === 100
-                  ? "PNG is lossless. Try lowering Resolution Scale, or convert to WebP/JPG for larger savings."
-                  : "The output is not smaller than the original. Try lower quality, lower scale, or WebP format.";
-            } else {
-              const saved = Math.round(((sourceFile.size - blob.size) / sourceFile.size) * 100);
-              nextSuccess = `Optimized image successfully. Estimated size reduction: ${saved}%.`;
-            }
+          worker.onerror = (err) => {
+            worker.terminate();
+            console.warn("Worker error, falling back to main thread:", err);
+            runMainThreadCompression();
+          };
 
-            resolve({
-              blob,
-              url: outputUrl,
-              mime: exportMime,
-              width: targetWidth,
-              height: targetHeight,
-              originalWidth: img.naturalWidth,
-              originalHeight: img.naturalHeight,
-              warningText: nextWarning,
-              successText: nextSuccess,
-            });
-          },
-          exportMime,
-          isPNG ? undefined : qualityFactor
-        );
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(sourceUrl);
-        reject(new Error("Failed to correctly decode graphic reference."));
-      };
+          worker.postMessage({
+            id: jobId,
+            file: sourceFile,
+            quality: activeQuality,
+            scale: activeScale,
+            format: exportMime
+          });
+        } catch (err) {
+          console.warn("Could not initialize worker, falling back to main thread:", err);
+          runMainThreadCompression();
+        }
+      } else {
+        // Run synchronously if OffscreenCanvas or workers are unsupported
+        runMainThreadCompression();
+      }
     });
   };
 

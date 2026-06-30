@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from "react";
 import { RouteProvider, useRoute } from "./context/RouteContext";
 import { AppShell } from "./components/layout/app-shell";
+import { ErrorBoundary } from "./components/layout/error-boundary";
 import { AppRoute } from "./lib/types";
 import { trackEvent } from "./lib/analytics";
 import { updateRouteMeta } from "./lib/route-meta";
@@ -136,7 +137,9 @@ function MainAppRouter() {
 
   return (
     <AppShell>
-      <Suspense fallback={<RouteLoading />}>{renderRouteView()}</Suspense>
+      <ErrorBoundary fallbackRoute={() => window.location.href = "/"}>
+        <Suspense fallback={<RouteLoading />}>{renderRouteView()}</Suspense>
+      </ErrorBoundary>
     </AppShell>
   );
 }
